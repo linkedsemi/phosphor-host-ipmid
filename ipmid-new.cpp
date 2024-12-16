@@ -17,7 +17,7 @@
 
 #include "settings.hpp"
 
-#include <dlfcn.h>
+// #include <dlfcn.h>
 
 #include <boost/algorithm/string.hpp>
 #include <boost/asio/io_context.hpp>
@@ -609,7 +609,7 @@ struct IpmiProvider
         lg2::debug("Open IPMI provider library: {PROVIDER}", "PROVIDER", name);
         try
         {
-            addr = dlopen(name.c_str(), RTLD_NOW);
+            // addr = dlopen(name.c_str(), RTLD_NOW);
         }
         catch (const std::exception& e)
         {
@@ -624,8 +624,8 @@ struct IpmiProvider
         }
         if (!isOpen())
         {
-            lg2::error("ERROR opening IPMI provider {PROVIDER}: {ERROR}",
-                       "PROVIDER", name, "ERROR", dlerror());
+            // lg2::error("ERROR opening IPMI provider {PROVIDER}: {ERROR}",
+            //            "PROVIDER", name, "ERROR", dlerror());
         }
     }
 
@@ -633,12 +633,13 @@ struct IpmiProvider
     {
         if (isOpen())
         {
-            dlclose(addr);
+            // dlclose(addr);
         }
     }
     bool isOpen() const
     {
-        return (nullptr != addr);
+        // return (nullptr != addr);
+        return true;
     }
 };
 
@@ -824,7 +825,8 @@ std::unique_ptr<phosphor::host::command::Manager>& ipmid_get_host_cmd_manager()
 extern void setIoContext(std::shared_ptr<boost::asio::io_context>& newIo);
 extern void setSdBus(std::shared_ptr<sdbusplus::asio::connection>& newBus);
 
-int main(int argc, char* argv[])
+// int main(int argc, char* argv[])
+extern "C" int ipmid_main(int argc, char* argv[])
 {
     // Connect to system bus
     auto io = std::make_shared<boost::asio::io_context>();

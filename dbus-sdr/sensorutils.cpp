@@ -215,7 +215,7 @@ bool getSensorAttributes(const double max, const double min, int16_t& mValue,
         return false;
     }
 
-    mValue = static_cast<int16_t>(std::round(dM));
+    mValue = static_cast<int16_t>(round(dM));
 
     normalizeIntExp(mValue, rExp, dM);
 
@@ -246,7 +246,7 @@ bool getSensorAttributes(const double max, const double min, int16_t& mValue,
         return false;
     }
 
-    bValue = static_cast<int16_t>(std::round(dB));
+    bValue = static_cast<int16_t>(round(dB));
 
     normalizeIntExp(bValue, bExp, dB);
 
@@ -276,7 +276,7 @@ uint8_t scaleIPMIValueFromDouble(const double value, const int16_t mValue,
         (std::pow(10.0, -rExp) * (value - (dB * std::pow(10.0, rExp + bExp)))) /
         dM;
 
-    auto scaledValue = static_cast<int32_t>(std::round(dX));
+    auto scaledValue = static_cast<int32_t>(round(dX));
 
     int32_t minClamp;
     int32_t maxClamp;

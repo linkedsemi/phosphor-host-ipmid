@@ -35,6 +35,7 @@
 #pragma once
 
 static constexpr bool debug = false;
+extern "C" int strverscmp (const char *, const char *);
 
 struct CmpStrVersion
 {

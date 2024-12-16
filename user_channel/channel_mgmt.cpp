@@ -19,7 +19,7 @@
 #include "apphandler.hpp"
 #include "user_layer.hpp"
 
-#include <ifaddrs.h>
+// #include <ifaddrs.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -917,96 +917,97 @@ int ChannelConfig::loadChannelConfig()
     }
 
     channelData.fill(ChannelProperties{});
+    while(1);
 
-    // Collect the list of NIC interfaces connected to the BMC. Use this
-    // information to only add IPMI channels that have active NIC interfaces.
-    struct ifaddrs *ifaddr = nullptr, *ifa = nullptr;
-    if (int err = getifaddrs(&ifaddr); err < 0)
-    {
-        lg2::debug("Unable to acquire network interfaces");
-        return -EIO;
-    }
+    // // Collect the list of NIC interfaces connected to the BMC. Use this
+    // // information to only add IPMI channels that have active NIC interfaces.
+    // struct ifaddrs *ifaddr = nullptr, *ifa = nullptr;
+    // if (int err = getifaddrs(&ifaddr); err < 0)
+    // {
+    //     lg2::debug("Unable to acquire network interfaces");
+    //     return -EIO;
+    // }
 
-    for (int chNum = 0; chNum < maxIpmiChannels; chNum++)
-    {
-        try
-        {
-            std::string chKey = std::to_string(chNum);
-            Json jsonChData = data[chKey].get<Json>();
-            if (jsonChData.is_null())
-            {
-                // If user didn't want to configure specific channel (say
-                // reserved channel), then load that index with default values.
-                setDefaultChannelConfig(chNum, defaultChannelName);
-                continue;
-            }
-            Json jsonChInfo = jsonChData[channelInfoString].get<Json>();
-            if (jsonChInfo.is_null())
-            {
-                lg2::error("Invalid/corrupted channel config file");
-                freeifaddrs(ifaddr);
-                return -EBADMSG;
-            }
+    // for (int chNum = 0; chNum < maxIpmiChannels; chNum++)
+    // {
+    //     try
+    //     {
+    //         std::string chKey = std::to_string(chNum);
+    //         Json jsonChData = data[chKey].get<Json>();
+    //         if (jsonChData.is_null())
+    //         {
+    //             // If user didn't want to configure specific channel (say
+    //             // reserved channel), then load that index with default values.
+    //             setDefaultChannelConfig(chNum, defaultChannelName);
+    //             continue;
+    //         }
+    //         Json jsonChInfo = jsonChData[channelInfoString].get<Json>();
+    //         if (jsonChInfo.is_null())
+    //         {
+    //             lg2::error("Invalid/corrupted channel config file");
+    //             freeifaddrs(ifaddr);
+    //             return -EBADMSG;
+    //         }
 
-            bool channelFound = true;
-            // Confirm the LAN channel is present
-            if (jsonChInfo[mediumTypeString].get<std::string>() == "lan-802.3")
-            {
-                channelFound = false;
-                for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next)
-                {
-                    if (jsonChData[nameString].get<std::string>() ==
-                        ifa->ifa_name)
-                    {
-                        channelFound = true;
-                        break;
-                    }
-                }
-            }
-            ChannelProperties& chData = channelData[chNum];
-            chData.chID = chNum;
-            chData.chName = jsonChData[nameString].get<std::string>();
-            chData.isChValid = channelFound &&
-                               jsonChData[isValidString].get<bool>();
-            chData.activeSessCount = jsonChData.value(activeSessionsString, 0);
-            chData.maxTransferSize =
-                jsonChData.value(maxTransferSizeString, smallChannelSize);
-            if (jsonChData.count(isManagementNIC) != 0)
-            {
-                chData.isManagementNIC =
-                    jsonChData[isManagementNIC].get<bool>();
-            }
+    //         bool channelFound = true;
+    //         // Confirm the LAN channel is present
+    //         if (jsonChInfo[mediumTypeString].get<std::string>() == "lan-802.3")
+    //         {
+    //             channelFound = false;
+    //             for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next)
+    //             {
+    //                 if (jsonChData[nameString].get<std::string>() ==
+    //                     ifa->ifa_name)
+    //                 {
+    //                     channelFound = true;
+    //                     break;
+    //                 }
+    //             }
+    //         }
+    //         ChannelProperties& chData = channelData[chNum];
+    //         chData.chID = chNum;
+    //         chData.chName = jsonChData[nameString].get<std::string>();
+    //         chData.isChValid = channelFound &&
+    //                            jsonChData[isValidString].get<bool>();
+    //         chData.activeSessCount = jsonChData.value(activeSessionsString, 0);
+    //         chData.maxTransferSize =
+    //             jsonChData.value(maxTransferSizeString, smallChannelSize);
+    //         if (jsonChData.count(isManagementNIC) != 0)
+    //         {
+    //             chData.isManagementNIC =
+    //                 jsonChData[isManagementNIC].get<bool>();
+    //         }
 
-            std::string medTypeStr =
-                jsonChInfo[mediumTypeString].get<std::string>();
-            chData.chInfo.mediumType =
-                static_cast<uint8_t>(convertToMediumTypeIndex(medTypeStr));
-            std::string protoTypeStr =
-                jsonChInfo[protocolTypeString].get<std::string>();
-            chData.chInfo.protocolType =
-                static_cast<uint8_t>(convertToProtocolTypeIndex(protoTypeStr));
-            std::string sessStr =
-                jsonChInfo[sessionSupportedString].get<std::string>();
-            chData.chInfo.sessionSupported =
-                static_cast<uint8_t>(convertToSessionSupportIndex(sessStr));
-            chData.chInfo.isIpmi = jsonChInfo[isIpmiString].get<bool>();
-            chData.chInfo.authTypeSupported = defaultAuthType;
-        }
-        catch (const Json::exception& e)
-        {
-            lg2::debug("Json Exception caught: {MSG}", "MSG", e.what());
-            freeifaddrs(ifaddr);
+    //         std::string medTypeStr =
+    //             jsonChInfo[mediumTypeString].get<std::string>();
+    //         chData.chInfo.mediumType =
+    //             static_cast<uint8_t>(convertToMediumTypeIndex(medTypeStr));
+    //         std::string protoTypeStr =
+    //             jsonChInfo[protocolTypeString].get<std::string>();
+    //         chData.chInfo.protocolType =
+    //             static_cast<uint8_t>(convertToProtocolTypeIndex(protoTypeStr));
+    //         std::string sessStr =
+    //             jsonChInfo[sessionSupportedString].get<std::string>();
+    //         chData.chInfo.sessionSupported =
+    //             static_cast<uint8_t>(convertToSessionSupportIndex(sessStr));
+    //         chData.chInfo.isIpmi = jsonChInfo[isIpmiString].get<bool>();
+    //         chData.chInfo.authTypeSupported = defaultAuthType;
+    //     }
+    //     catch (const Json::exception& e)
+    //     {
+    //         lg2::debug("Json Exception caught: {MSG}", "MSG", e.what());
+    //         freeifaddrs(ifaddr);
 
-            return -EBADMSG;
-        }
-        catch (const std::invalid_argument& e)
-        {
-            lg2::error("Corrupted config: {MSG}", "MSG", e.what());
-            freeifaddrs(ifaddr);
-            return -EBADMSG;
-        }
-    }
-    freeifaddrs(ifaddr);
+    //         return -EBADMSG;
+    //     }
+    //     catch (const std::invalid_argument& e)
+    //     {
+    //         lg2::error("Corrupted config: {MSG}", "MSG", e.what());
+    //         freeifaddrs(ifaddr);
+    //         return -EBADMSG;
+    //     }
+    // }
+    // freeifaddrs(ifaddr);
 
     return 0;
 }

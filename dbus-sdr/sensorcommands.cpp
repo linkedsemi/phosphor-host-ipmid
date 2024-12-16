@@ -287,7 +287,7 @@ static void getSensorMaxMin(const DbusInterfaceMap& sensorMap, double& max,
             double value = std::visit(VariantToDoubleVisitor(), lower->second);
             if (std::isfinite(value))
             {
-                min = std::fmin(value, min);
+                min = fmin(value, min);
             }
         }
         if (upper != critical->second.end())
@@ -295,7 +295,7 @@ static void getSensorMaxMin(const DbusInterfaceMap& sensorMap, double& max,
             double value = std::visit(VariantToDoubleVisitor(), upper->second);
             if (std::isfinite(value))
             {
-                max = std::fmax(value, max);
+                max = fmax(value, max);
             }
         }
     }
@@ -308,7 +308,7 @@ static void getSensorMaxMin(const DbusInterfaceMap& sensorMap, double& max,
             double value = std::visit(VariantToDoubleVisitor(), lower->second);
             if (std::isfinite(value))
             {
-                min = std::fmin(value, min);
+                min = fmin(value, min);
             }
         }
         if (upper != warning->second.end())
@@ -316,7 +316,7 @@ static void getSensorMaxMin(const DbusInterfaceMap& sensorMap, double& max,
             double value = std::visit(VariantToDoubleVisitor(), upper->second);
             if (std::isfinite(value))
             {
-                max = std::fmax(value, max);
+                max = fmax(value, max);
             }
         }
     }

@@ -1,0 +1,4 @@
+
+config OPENBMC_PHOSPHOR_HOST_IPMID
+    bool "openbmc phosphor host ipmid"
+    

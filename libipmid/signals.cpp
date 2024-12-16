@@ -1,3 +1,5 @@
+#include <sys/time.h>
+
 #include <boost/asio/signal_set.hpp>
 #include <ipmid/api.hpp>
 #include <phosphor-logging/lg2.hpp>
