@@ -31,7 +31,7 @@
 #include <phosphor-logging/lg2.hpp>
 #include <sdbusplus/asio/connection.hpp>
 #include <sdbusplus/asio/object_server.hpp>
-#include <sdbusplus/asio/sd_event.hpp>
+//#include <sdbusplus/asio/sd_event.hpp>
 #include <sdbusplus/bus.hpp>
 #include <sdbusplus/bus/match.hpp>
 #include <sdbusplus/timer.hpp>
@@ -85,11 +85,11 @@ EInterfaceIndex getInterfaceIndex(void)
 }
 
 sd_bus* bus;
-sd_event* events = nullptr;
-sd_event* ipmid_get_sd_event_connection(void)
-{
-    return events;
-}
+// sd_event* events = nullptr;
+// sd_event* ipmid_get_sd_event_connection(void)
+// {
+//     return events;
+// }
 sd_bus* ipmid_get_sd_bus_connection(void)
 {
     return bus;
@@ -849,7 +849,7 @@ extern "C" int ipmid_main(int argc, char* argv[])
 
     // TODO: Remove all vestiges of sd_event from phosphor-host-ipmid
     //       until that is done, add the sd_event wrapper to the io object
-    sdbusplus::asio::sd_event_wrapper sdEvents(*io);
+//    sdbusplus::asio::sd_event_wrapper sdEvents(*io);
 
     cmdManager = std::make_unique<phosphor::host::command::Manager>(*sdbusp);
 
@@ -876,15 +876,15 @@ extern "C" int ipmid_main(int argc, char* argv[])
 
     int exitCode = 0;
     // set up boost::asio signal handling
-    std::function<SignalResponse(int)> stopAsioRunLoop = [&io, &exitCode](
-                                                             int signalNumber) {
-        lg2::info("Received signal {SIGNAL}; quitting", "SIGNAL", signalNumber);
-        io->stop();
-        exitCode = signalNumber;
-        return SignalResponse::breakExecution;
-    };
-    registerSignalHandler(ipmi::prioOpenBmcBase, SIGINT, stopAsioRunLoop);
-    registerSignalHandler(ipmi::prioOpenBmcBase, SIGTERM, stopAsioRunLoop);
+    // std::function<SignalResponse(int)> stopAsioRunLoop = [&io, &exitCode](
+    //                                                          int signalNumber) {
+    //     lg2::info("Received signal {SIGNAL}; quitting", "SIGNAL", signalNumber);
+    //     io->stop();
+    //     exitCode = signalNumber;
+    //     return SignalResponse::breakExecution;
+    // };
+    // registerSignalHandler(ipmi::prioOpenBmcBase, SIGINT, stopAsioRunLoop);
+    // registerSignalHandler(ipmi::prioOpenBmcBase, SIGTERM, stopAsioRunLoop);
 
     sdbusp->request_name("xyz.openbmc_project.Ipmi.Host");
     // Add bindings for inbound IPMI requests
