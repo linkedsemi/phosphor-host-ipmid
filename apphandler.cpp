@@ -43,6 +43,7 @@
 #include <string_view>
 #include <tuple>
 #include <vector>
+#include "ctor_init.h"
 
 extern sd_bus* bus;
 
@@ -57,8 +58,8 @@ static constexpr auto activationIntf =
     "xyz.openbmc_project.Software.Activation";
 static constexpr auto softwareRoot = "/xyz/openbmc_project/software";
 
-void register_netfn_app_functions() __attribute__((constructor));
-
+void register_netfn_app_functions();
+CTOR_SECTION_ITERABLE(libipmid_constructor,register_netfn_app_functions);
 using namespace phosphor::logging;
 using namespace sdbusplus::error::xyz::openbmc_project::common;
 using Version = sdbusplus::server::xyz::openbmc_project::software::Version;
