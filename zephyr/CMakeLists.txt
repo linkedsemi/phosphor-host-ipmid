@@ -1,6 +1,7 @@
 if(CONFIG_OPENBMC_PHOSPHOR_HOST_IPMID)
     zephyr_library()
     zephyr_library_sources(
+        ${ZEPHYR_CURRENT_MODULE_DIR}/ipmid-new.cpp
         ${ZEPHYR_CURRENT_MODULE_DIR}/libipmid/entity_map_json.cpp
         ${ZEPHYR_CURRENT_MODULE_DIR}/libipmid/sdbus-asio.cpp
         ${ZEPHYR_CURRENT_MODULE_DIR}/libipmid/signals.cpp
@@ -27,20 +28,22 @@ if(CONFIG_OPENBMC_PHOSPHOR_HOST_IPMID)
         ${ZEPHYR_CURRENT_MODULE_DIR}/read_fru_data.cpp
         ${ZEPHYR_CURRENT_MODULE_DIR}/sensordatahandler.cpp
         ${ZEPHYR_CURRENT_MODULE_DIR}/user_channel/channelcommands.cpp
-        ${ZEPHYR_CURRENT_MODULE_DIR}/ipmid-new.cpp
         ${ZEPHYR_CURRENT_MODULE_DIR}/host-cmd-manager.cpp
         ${ZEPHYR_CURRENT_MODULE_DIR}/settings.cpp
         ${ZEPHYR_CURRENT_MODULE_DIR}/scripts/fru-read-gen.cpp
         ${ZEPHYR_CURRENT_MODULE_DIR}/scripts/inventory-sensor-gen.cpp
         ${ZEPHYR_CURRENT_MODULE_DIR}/scripts/sensor-gen.cpp
         ${ZEPHYR_CURRENT_MODULE_DIR}/storageaddsel.cpp
-
-
     )
     zephyr_library_include_directories(${ZEPHYR_CURRENT_MODULE_DIR}/zephyr)
     zephyr_library_include_directories(${ZEPHYR_CURRENT_MODULE_DIR}/)
 
     zephyr_include_directories(${ZEPHYR_CURRENT_MODULE_DIR}/include)
     zephyr_include_directories(${ZEPHYR_CURRENT_MODULE_DIR}/)
+
     # zephyr_library_compile_definitions(_GNU_SOURCE)
+    zephyr_linker_sources(
+        ROM_START
+        ipmi_netfn_register.ld
+    )
 endif()

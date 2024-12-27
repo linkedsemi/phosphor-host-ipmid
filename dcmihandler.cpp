@@ -24,7 +24,9 @@ using sdbusplus::server::xyz::openbmc_project::network::EthernetInterface;
 using InternalFailure =
     sdbusplus::error::xyz::openbmc_project::common::InternalFailure;
 
-void register_netfn_dcmi_functions() __attribute__((constructor));
+// void register_netfn_dcmi_functions() __attribute__((constructor));
+#include <ipmid/netfn_register.hpp>
+DECLEARATION_IPMI_NETFN_FUNC_REGISTER(register_netfn_dcmi_functions);
 
 constexpr auto pcapPath = "/xyz/openbmc_project/control/host0/power_cap";
 constexpr auto pcapInterface = "xyz.openbmc_project.Control.Power.Cap";

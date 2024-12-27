@@ -638,7 +638,10 @@ ipmi::RspType<bool,    // stdPayload0ipmiReserved
         res8bits);
 }
 
-void registerUserIpmiFunctions() __attribute__((constructor));
+// void registerUserIpmiFunctions() __attribute__((constructor));
+#include <ipmid/netfn_register.hpp>
+DECLEARATION_IPMI_NETFN_FUNC_REGISTER(registerUserIpmiFunctions);
+
 void registerUserIpmiFunctions()
 {
     post_work([]() { ipmiUserInit(); });

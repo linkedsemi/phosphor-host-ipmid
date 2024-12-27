@@ -642,47 +642,6 @@ struct IpmiProvider
         return true;
     }
 };
-
-// Plugin libraries need to contain .so either at the end or in the middle
-constexpr const char ipmiPluginExtn[] = ".so";
-
-/* return a list of self-closing library handles */
-std::forward_list<IpmiProvider> loadProviders(const fs::path& ipmiLibsPath)
-{
-    std::vector<fs::path> libs;
-    for (const auto& libPath : fs::directory_iterator(ipmiLibsPath))
-    {
-        std::error_code ec;
-        fs::path fname = libPath.path();
-        if (fs::is_symlink(fname, ec) || ec)
-        {
-            // it's a symlink or some other error; skip it
-            continue;
-        }
-        while (fname.has_extension())
-        {
-            fs::path extn = fname.extension();
-            if (extn == ipmiPluginExtn)
-            {
-                libs.push_back(libPath.path());
-                break;
-            }
-            fname.replace_extension();
-        }
-    }
-    std::sort(libs.begin(), libs.end());
-
-    std::forward_list<IpmiProvider> handles;
-    for (auto& lib : libs)
-    {
-#ifdef __IPMI_DEBUG__
-        lg2::debug("Registering handler {HANDLER}", "HANDLER", lib);
-#endif
-        handles.emplace_front(lib.c_str());
-    }
-    return handles;
-}
-
 } // namespace ipmi
 
 #ifdef ALLOW_DEPRECATED_API
@@ -826,11 +785,63 @@ extern void setIoContext(std::shared_ptr<boost::asio::io_context>& newIo);
 extern void setSdBus(std::shared_ptr<sdbusplus::asio::connection>& newBus);
 
 // int main(int argc, char* argv[])
+
+/* Netfn register handlers init */
+typedef void (*func_ptr)(void);
+extern func_ptr __ipmi_netfn_register_array_start[];
+extern func_ptr __ipmi_netfn_register_array_end[];
+static void loadProviders()
+{
+    printk("IPMI register init...\n");
+    for (func_ptr *func = __ipmi_netfn_register_array_start; func < __ipmi_netfn_register_array_end; func++) {
+		printk("init item %08p, function ptr %08p\n", func, *func);
+		(*func)();
+	}
+}
+
+// 使用该测试需要修改boost/asio/spawn.hpp, 增加一个basic_yield_context空的构造函数
+// basic_yield_context(
+//     const basic_yield_context<OtherExecutor> &other,
+//     constraint_t<is_convertible<OtherExecutor, Executor>::value> = 0)
+//     : spawned_thread_(other.spawned_thread_), executor_(other.executor_),
+//       ec_(other.ec_) {}
+//
+// +  basic_yield_context() {}
+void ipmid_cmd_test()
+{
+    printk("%s\n", __FUNCTION__);
+    
+    ipmi::NetFn netFn = 6;
+    uint8_t lun = 0;
+    ipmi::Cmd cmd = 4;
+    int channel = 0;
+    int userId = 0;
+    uint32_t sessionId = 0;
+    ipmi::Privilege privilege = ipmi::Privilege::Admin;
+    int rqSA = 0;
+    int hostIdx = 0;
+    ipmi::SecureBuffer data;
+    boost::asio::yield_context yield;
+
+    auto ctx = std::make_shared<ipmi::Context>(
+        getSdBus(), netFn, lun, cmd, channel, userId, sessionId, privilege,
+        rqSA, hostIdx, yield);
+    auto request = std::make_shared<ipmi::message::Request>(
+        ctx, std::forward<ipmi::SecureBuffer>(data));
+
+    ipmi::message::Response::ptr response = ipmi::executeIpmiCommand(request);
+    printk("%u, %ld: %#x %#x\n", 
+        response->cc, response->payload.size(), 
+        response->payload.data()[0], response->payload.data()[1]);
+
+    return;
+}
+
 extern "C" int ipmid_main(int argc, char* argv[])
 {
     // Connect to system bus
     auto io = std::make_shared<boost::asio::io_context>();
-    setIoContext(io);
+
     if (argc > 1 && std::string(argv[1]) == "-session")
     {
         sd_bus_default_user(&bus);
@@ -839,41 +850,53 @@ extern "C" int ipmid_main(int argc, char* argv[])
     {
         sd_bus_default_system(&bus);
     }
-    auto sdbusp = std::make_shared<sdbusplus::asio::connection>(*io, bus);
+    setIoContext(io);
+
+    printk("setSdBus\n");
+    // auto sdbusp = std::make_shared<sdbusplus::asio::connection>(*io, bus);
+    std::shared_ptr<sdbusplus::asio::connection> sdbusp;
     setSdBus(sdbusp);
 
     // TODO: Hack to keep the sdEvents running.... Not sure why the sd_event
     //       queue stops running if we don't have a timer that keeps re-arming
-    sdbusplus::Timer t2([]() { ; });
-    t2.start(std::chrono::microseconds(500000), true);
+
+    printk("Timer\n");
+    // sdbusplus::Timer t2([]() { ; });
+    // t2.start(std::chrono::microseconds(500000), true);
 
     // TODO: Remove all vestiges of sd_event from phosphor-host-ipmid
     //       until that is done, add the sd_event wrapper to the io object
     sdbusplus::asio::sd_event_wrapper sdEvents(*io);
 
-    cmdManager = std::make_unique<phosphor::host::command::Manager>(*sdbusp);
+    printk("cmdManager\n");
+    // cmdManager = std::make_unique<phosphor::host::command::Manager>(*sdbusp);
 
+    printk("loadProviders\n");
     // Register all command providers and filters
-    std::forward_list<ipmi::IpmiProvider> providers =
-        ipmi::loadProviders(HOST_IPMI_LIB_PATH);
+    loadProviders();
 
 #ifdef ALLOW_DEPRECATED_API
     // listen on deprecated signal interface for kcs/bt commands
-    constexpr const char* FILTER = "type='signal',interface='org.openbmc."
-                                   "HostIpmi',member='ReceivedMessage'";
-    sdbusplus::bus::match_t oldIpmiInterface(*sdbusp, FILTER,
-                                             handleLegacyIpmiCommand);
+    printk("oldIpmiInterface\n");
+    // constexpr const char* FILTER = "type='signal',interface='org.openbmc."
+    //                                "HostIpmi',member='ReceivedMessage'";
+    // sdbusplus::bus::match_t oldIpmiInterface(*sdbusp, FILTER,
+    //                                          handleLegacyIpmiCommand);
 #endif /* ALLOW_DEPRECATED_API */
 
+    printk("nameOwnerChanged\n");
     // set up bus name watching to match channels with bus names
-    sdbusplus::bus::match_t nameOwnerChanged(
-        *sdbusp,
-        sdbusplus::bus::match::rules::nameOwnerChanged() +
-            sdbusplus::bus::match::rules::arg0namespace(
-                ipmi::ipmiDbusChannelMatch),
-        ipmi::nameChangeHandler);
-    ipmi::doListNames(*io, *sdbusp);
+    // sdbusplus::bus::match_t nameOwnerChanged(
+    //     *sdbusp,
+    //     sdbusplus::bus::match::rules::nameOwnerChanged() +
+    //         sdbusplus::bus::match::rules::arg0namespace(
+    //             ipmi::ipmiDbusChannelMatch),
+    //     ipmi::nameChangeHandler);
 
+    printk("doListNames\n");
+    // ipmi::doListNames(*io, *sdbusp);
+
+    printk("stopAsioRunLoop\n");
     int exitCode = 0;
     // set up boost::asio signal handling
     std::function<SignalResponse(int)> stopAsioRunLoop = [&io, &exitCode](
@@ -883,26 +906,41 @@ extern "C" int ipmid_main(int argc, char* argv[])
         exitCode = signalNumber;
         return SignalResponse::breakExecution;
     };
-    registerSignalHandler(ipmi::prioOpenBmcBase, SIGINT, stopAsioRunLoop);
-    registerSignalHandler(ipmi::prioOpenBmcBase, SIGTERM, stopAsioRunLoop);
 
-    sdbusp->request_name("xyz.openbmc_project.Ipmi.Host");
+    printk("registerSignalHandler\n");
+    // registerSignalHandler(ipmi::prioOpenBmcBase, SIGINT, stopAsioRunLoop);
+    // registerSignalHandler(ipmi::prioOpenBmcBase, SIGTERM, stopAsioRunLoop);
+
+    printk("request_name\n");
+    // sdbusp->request_name("xyz.openbmc_project.Ipmi.Host");
+
+    printk("server\n");
     // Add bindings for inbound IPMI requests
-    auto server = sdbusplus::asio::object_server(sdbusp);
-    auto iface = server.add_interface("/xyz/openbmc_project/Ipmi",
-                                      "xyz.openbmc_project.Ipmi.Server");
-    iface->register_method("execute", ipmi::executionEntry);
-    iface->initialize();
+    // auto server = sdbusplus::asio::object_server(sdbusp);
 
-    io->run();
+    printk("add_interface\n");
+    // auto iface = server.add_interface("/xyz/openbmc_project/Ipmi",
+    //                                   "xyz.openbmc_project.Ipmi.Server");
 
+    printk("register_method\n");
+    // iface->register_method("execute", ipmi::executionEntry);
+
+    printk("initialize\n");
+    // iface->initialize();
+
+    printk("run\n");
+    // io->run();
+
+    // ipmid_cmd_test();
+
+    printk("exit\n");
     // destroy all the IPMI handlers so the providers can unload safely
     ipmi::handlerMap.clear();
     ipmi::groupHandlerMap.clear();
     ipmi::oemHandlerMap.clear();
     ipmi::filterList.clear();
     // unload the provider libraries
-    providers.clear();
+    // providers.clear();
 
     std::exit(exitCode);
 }

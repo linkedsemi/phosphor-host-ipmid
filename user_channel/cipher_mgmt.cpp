@@ -50,7 +50,7 @@ void CipherConfig::loadCSPrivilegesToMap()
 {
     if (!fs::exists(cipherSuiteDefaultPrivFileName))
     {
-        lg2::error("CS privilege levels default file does not exist...");
+        // lg2::error("CS privilege levels default file does not exist...");
     }
     else
     {

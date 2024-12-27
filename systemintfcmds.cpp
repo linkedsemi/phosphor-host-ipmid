@@ -13,7 +13,9 @@
 #include <cstring>
 #include <fstream>
 
-void register_netfn_app_functions() __attribute__((constructor));
+// void register_netfn_app_functions() __attribute__((constructor));
+#include <ipmid/netfn_register.hpp>
+DECLEARATION_IPMI_NETFN_FUNC_REGISTER(register_netfn_app_functions);
 
 using namespace sdbusplus::server::xyz::openbmc_project::control;
 

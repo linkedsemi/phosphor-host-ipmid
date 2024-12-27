@@ -14,7 +14,9 @@ static constexpr auto match = "bmc0";
 
 using BMC = sdbusplus::server::xyz::openbmc_project::state::BMC;
 
-void register_netfn_global_functions() __attribute__((constructor));
+// void register_netfn_global_functions() __attribute__((constructor));
+#include <ipmid/netfn_register.hpp>
+DECLEARATION_IPMI_NETFN_FUNC_REGISTER(register_netfn_global_functions);
 
 void resetBMC()
 {

@@ -128,7 +128,9 @@ const static boost::container::flat_map<const char*, SensorUnits, CmpStr>
                  {"power", SensorUnits::watts},
                  {"energy", SensorUnits::joules}}};
 
-void registerSensorFunctions() __attribute__((constructor));
+// void registerSensorFunctions() __attribute__((constructor));
+#include <ipmid/netfn_register.hpp>
+DECLEARATION_IPMI_NETFN_FUNC_REGISTER(registerSensorFunctions);
 
 static sdbusplus::bus::match_t sensorAdded(
     *getSdBus(),

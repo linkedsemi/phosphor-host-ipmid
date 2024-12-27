@@ -57,7 +57,9 @@ static constexpr auto activationIntf =
     "xyz.openbmc_project.Software.Activation";
 static constexpr auto softwareRoot = "/xyz/openbmc_project/software";
 
-void register_netfn_app_functions() __attribute__((constructor));
+// void register_netfn_app_functions() __attribute__((constructor));
+#include <ipmid/netfn_register.hpp>
+DECLEARATION_IPMI_NETFN_FUNC_REGISTER(register_netfn_app_functions);
 
 using namespace phosphor::logging;
 using namespace sdbusplus::error::xyz::openbmc_project::common;
@@ -752,6 +754,8 @@ auto ipmiAppGetSelfTestResults() -> ipmi::RspType<uint8_t, uint8_t>
     //      [2] 1b = Internal Use Area of BMC FRU corrupted.
     //      [1] 1b = controller update 'boot block' firmware corrupted.
     //      [0] 1b = controller operational firmware corrupted.
+
+    printk("%s\n", __FUNCTION__);
     constexpr uint8_t notImplemented = 0x56;
     constexpr uint8_t zero = 0;
     return ipmi::responseSuccess(notImplemented, zero);
@@ -1726,7 +1730,7 @@ static bool isCmdAllowlisted(uint8_t busId, uint8_t targetAddr,
 #else
 static bool populateI2CControllerWRAllowlist()
 {
-    lg2::info("I2C_WHITELIST_CHECK is disabled, do not populate allowlist");
+    // lg2::info("I2C_WHITELIST_CHECK is disabled, do not populate allowlist");
     return true;
 }
 #endif // ENABLE_I2C_WHITELIST_CHECK
@@ -1868,3 +1872,4 @@ void register_netfn_app_functions()
                           ipmi::Privilege::Admin, ipmiAppSetSystemInfo);
     return;
 }
+

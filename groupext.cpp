@@ -3,7 +3,9 @@
 #include <cstdio>
 
 #define GRPEXT_GET_GROUP_CMD 0
-void register_netfn_groupext_functions() __attribute__((constructor));
+// void register_netfn_groupext_functions() __attribute__((constructor));
+#include <ipmid/netfn_register.hpp>
+DECLEARATION_IPMI_NETFN_FUNC_REGISTER(register_netfn_groupext_functions);
 
 ipmi_ret_t ipmi_groupext(ipmi_netfn_t, ipmi_cmd_t, ipmi_request_t,
                          ipmi_response_t response, ipmi_data_len_t data_len,

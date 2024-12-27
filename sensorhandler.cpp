@@ -42,7 +42,9 @@ using namespace phosphor::logging;
 using InternalFailure =
     sdbusplus::error::xyz::openbmc_project::common::InternalFailure;
 
-void register_netfn_sen_functions() __attribute__((constructor));
+// void register_netfn_sen_functions() __attribute__((constructor));
+#include <ipmid/netfn_register.hpp>
+DECLEARATION_IPMI_NETFN_FUNC_REGISTER(register_netfn_sen_functions);
 
 struct sensorTypemap_t
 {

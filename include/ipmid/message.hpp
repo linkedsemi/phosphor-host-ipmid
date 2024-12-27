@@ -122,9 +122,9 @@ struct Payload
         if (raw.size() != 0 && std::uncaught_exceptions() == 0 && !trailingOk &&
             !unpackCheck && !unpackError)
         {
-            lg2::error(
-                "Failed to check request for full unpack: raw size: {RAW_SIZE}",
-                "RAW_SIZE", raw.size());
+            // lg2::error(
+            //     "Failed to check request for full unpack: raw size: {RAW_SIZE}",
+            //     "RAW_SIZE", raw.size());
         }
     }
 

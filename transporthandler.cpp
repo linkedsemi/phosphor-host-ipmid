@@ -1718,7 +1718,9 @@ RspType<message::Payload> getSolConfParams(
 } // namespace transport
 } // namespace ipmi
 
-void register_netfn_transport_functions() __attribute__((constructor));
+// void register_netfn_transport_functions() __attribute__((constructor));
+#include <ipmid/netfn_register.hpp>
+DECLEARATION_IPMI_NETFN_FUNC_REGISTER(register_netfn_transport_functions);
 
 void register_netfn_transport_functions()
 {

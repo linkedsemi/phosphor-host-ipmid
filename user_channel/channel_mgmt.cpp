@@ -299,75 +299,76 @@ ChannelConfig::~ChannelConfig()
 
 ChannelConfig::ChannelConfig() : bus(ipmid_get_sd_bus_connection())
 {
-    std::ofstream mutexCleanUpFile;
-    mutexCleanUpFile.open(ipmiChMutexCleanupLockFile,
-                          std::ofstream::out | std::ofstream::app);
-    if (!mutexCleanUpFile.good())
-    {
-        lg2::debug("Unable to open mutex cleanup file");
-        return;
-    }
-    mutexCleanUpFile.close();
-    mutexCleanupLock =
-        boost::interprocess::file_lock(ipmiChMutexCleanupLockFile);
-    if (mutexCleanupLock.try_lock())
-    {
-        boost::interprocess::named_recursive_mutex::remove(ipmiChannelMutex);
-        channelMutex =
-            std::make_unique<boost::interprocess::named_recursive_mutex>(
-                boost::interprocess::open_or_create, ipmiChannelMutex);
-        mutexCleanupLock.lock_sharable();
-    }
-    else
-    {
-        mutexCleanupLock.lock_sharable();
-        channelMutex =
-            std::make_unique<boost::interprocess::named_recursive_mutex>(
-                boost::interprocess::open_or_create, ipmiChannelMutex);
-    }
+    printk("%s\n", __FUNCTION__);
+    // std::ofstream mutexCleanUpFile;
+    // mutexCleanUpFile.open(ipmiChMutexCleanupLockFile,
+    //                       std::ofstream::out | std::ofstream::app);
+    // if (!mutexCleanUpFile.good())
+    // {
+    //     lg2::debug("Unable to open mutex cleanup file");
+    //     return;
+    // }
+    // mutexCleanUpFile.close();
+    // mutexCleanupLock =
+    //     boost::interprocess::file_lock(ipmiChMutexCleanupLockFile);
+    // if (mutexCleanupLock.try_lock())
+    // {
+    //     boost::interprocess::named_recursive_mutex::remove(ipmiChannelMutex);
+    //     channelMutex =
+    //         std::make_unique<boost::interprocess::named_recursive_mutex>(
+    //             boost::interprocess::open_or_create, ipmiChannelMutex);
+    //     mutexCleanupLock.lock_sharable();
+    // }
+    // else
+    // {
+    //     mutexCleanupLock.lock_sharable();
+    //     channelMutex =
+    //         std::make_unique<boost::interprocess::named_recursive_mutex>(
+    //             boost::interprocess::open_or_create, ipmiChannelMutex);
+    // }
 
     initChannelPersistData();
 
-    sigHndlrLock = boost::interprocess::file_lock(channelNvDataFilename);
-    // Register it for single object and single process either netipmid /
-    // host-ipmid
-    if (chPropertiesSignal == nullptr && sigHndlrLock.try_lock())
-    {
-        lg2::debug("Registering channel signal handler.");
-        chPropertiesSignal = std::make_unique<sdbusplus::bus::match_t>(
-            bus,
-            sdbusplus::bus::match::rules::path_namespace(
-                networkIntfObjectBasePath) +
-                sdbusplus::bus::match::rules::type::signal() +
-                sdbusplus::bus::match::rules::member(propertiesChangedSignal) +
-                sdbusplus::bus::match::rules::interface(
-                    dBusPropertiesInterface) +
-                sdbusplus::bus::match::rules::argN(0, networkChConfigIntfName),
-            [&](sdbusplus::message_t& msg) {
-                DbusChObjProperties props;
-                std::string iface;
-                std::string path = msg.get_path();
-                msg.read(iface, props);
-                processChAccessPropChange(path, props);
-            });
-        signalHndlrObjectState = true;
+    // sigHndlrLock = boost::interprocess::file_lock(channelNvDataFilename);
+    // // Register it for single object and single process either netipmid /
+    // // host-ipmid
+    // if (chPropertiesSignal == nullptr && sigHndlrLock.try_lock())
+    // {
+    //     lg2::debug("Registering channel signal handler.");
+    //     chPropertiesSignal = std::make_unique<sdbusplus::bus::match_t>(
+    //         bus,
+    //         sdbusplus::bus::match::rules::path_namespace(
+    //             networkIntfObjectBasePath) +
+    //             sdbusplus::bus::match::rules::type::signal() +
+    //             sdbusplus::bus::match::rules::member(propertiesChangedSignal) +
+    //             sdbusplus::bus::match::rules::interface(
+    //                 dBusPropertiesInterface) +
+    //             sdbusplus::bus::match::rules::argN(0, networkChConfigIntfName),
+    //         [&](sdbusplus::message_t& msg) {
+    //             DbusChObjProperties props;
+    //             std::string iface;
+    //             std::string path = msg.get_path();
+    //             msg.read(iface, props);
+    //             processChAccessPropChange(path, props);
+    //         });
+    //     signalHndlrObjectState = true;
 
-        chInterfaceAddedSignal = std::make_unique<sdbusplus::bus::match_t>(
-            bus,
-            sdbusplus::bus::match::rules::type::signal() +
-                sdbusplus::bus::match::rules::member(interfaceAddedSignal) +
-                sdbusplus::bus::match::rules::argNpath(
-                    0, std::string(networkIntfObjectBasePath) + "/"),
-            [&](sdbusplus::message_t&) { initChannelPersistData(); });
+    //     chInterfaceAddedSignal = std::make_unique<sdbusplus::bus::match_t>(
+    //         bus,
+    //         sdbusplus::bus::match::rules::type::signal() +
+    //             sdbusplus::bus::match::rules::member(interfaceAddedSignal) +
+    //             sdbusplus::bus::match::rules::argNpath(
+    //                 0, std::string(networkIntfObjectBasePath) + "/"),
+    //         [&](sdbusplus::message_t&) { initChannelPersistData(); });
 
-        chInterfaceRemovedSignal = std::make_unique<sdbusplus::bus::match_t>(
-            bus,
-            sdbusplus::bus::match::rules::type::signal() +
-                sdbusplus::bus::match::rules::member(interfaceRemovedSignal) +
-                sdbusplus::bus::match::rules::argNpath(
-                    0, std::string(networkIntfObjectBasePath) + "/"),
-            [&](sdbusplus::message_t&) { initChannelPersistData(); });
-    }
+    //     chInterfaceRemovedSignal = std::make_unique<sdbusplus::bus::match_t>(
+    //         bus,
+    //         sdbusplus::bus::match::rules::type::signal() +
+    //             sdbusplus::bus::match::rules::member(interfaceRemovedSignal) +
+    //             sdbusplus::bus::match::rules::argNpath(
+    //                 0, std::string(networkIntfObjectBasePath) + "/"),
+    //         [&](sdbusplus::message_t&) { initChannelPersistData(); });
+    // }
 }
 
 bool ChannelConfig::isValidChannel(const uint8_t chNum)
@@ -906,18 +907,18 @@ uint8_t ChannelConfig::getManagementNICID()
 
 int ChannelConfig::loadChannelConfig()
 {
-    boost::interprocess::scoped_lock<boost::interprocess::named_recursive_mutex>
-        channelLock{*channelMutex};
+    // boost::interprocess::scoped_lock<boost::interprocess::named_recursive_mutex>
+    //     channelLock{*channelMutex};
 
-    Json data = readJsonFile(channelConfigDefaultFilename);
-    if (data.empty())
-    {
-        lg2::debug("Error in opening IPMI Channel data file");
-        return -EIO;
-    }
+    // Json data = readJsonFile(channelConfigDefaultFilename);
+    // if (data.empty())
+    // {
+    //     lg2::debug("Error in opening IPMI Channel data file");
+    //     return -EIO;
+    // }
 
     channelData.fill(ChannelProperties{});
-    while(1);
+    // while(1);
 
     // // Collect the list of NIC interfaces connected to the BMC. Use this
     // // information to only add IPMI channels that have active NIC interfaces.
@@ -1386,8 +1387,8 @@ int ChannelConfig::syncNetworkChannelConfig()
 
 void ChannelConfig::initChannelPersistData()
 {
-    boost::interprocess::scoped_lock<boost::interprocess::named_recursive_mutex>
-        channelLock{*channelMutex};
+    // boost::interprocess::scoped_lock<boost::interprocess::named_recursive_mutex>
+    //     channelLock{*channelMutex};
 
     /* Always read the channel config */
     if (loadChannelConfig() != 0)
@@ -1397,50 +1398,50 @@ void ChannelConfig::initChannelPersistData()
     }
 
     /* Populate the channel persist data */
-    if (readChannelPersistData() != 0)
-    {
-        // Copy default NV data to RW location
-        std::filesystem::copy_file(channelAccessDefaultFilename,
-                                   channelNvDataFilename);
+    // if (readChannelPersistData() != 0)
+    // {
+    //     // Copy default NV data to RW location
+    //     std::filesystem::copy_file(channelAccessDefaultFilename,
+    //                                channelNvDataFilename);
 
-        // Load the channel access NV data
-        if (readChannelPersistData() != 0)
-        {
-            lg2::error("Failed to read channel access NV data");
-            throw std::ios_base::failure(
-                "Failed to read channel access NV configuration");
-        }
-    }
+    //     // Load the channel access NV data
+    //     if (readChannelPersistData() != 0)
+    //     {
+    //         lg2::error("Failed to read channel access NV data");
+    //         throw std::ios_base::failure(
+    //             "Failed to read channel access NV configuration");
+    //     }
+    // }
 
     // First check the volatile data file
     // If not present, load the default values
-    if (readChannelVolatileData() != 0)
-    {
-        // Copy default volatile data to temporary location
-        // NV file(channelNvDataFilename) must have created by now.
-        std::filesystem::copy_file(channelNvDataFilename,
-                                   channelVolatileDataFilename);
+    // if (readChannelVolatileData() != 0)
+    // {
+    //     // Copy default volatile data to temporary location
+    //     // NV file(channelNvDataFilename) must have created by now.
+    //     std::filesystem::copy_file(channelNvDataFilename,
+    //                                channelVolatileDataFilename);
 
-        // Load the channel access volatile data
-        if (readChannelVolatileData() != 0)
-        {
-            lg2::error("Failed to read channel access volatile data");
-            throw std::ios_base::failure(
-                "Failed to read channel access volatile configuration");
-        }
-    }
+    //     // Load the channel access volatile data
+    //     if (readChannelVolatileData() != 0)
+    //     {
+    //         lg2::error("Failed to read channel access volatile data");
+    //         throw std::ios_base::failure(
+    //             "Failed to read channel access volatile configuration");
+    //     }
+    // }
 
     // Synchronize the channel config(priv) with network channel
     // configuration(priv) over dbus
-    if (syncNetworkChannelConfig() != 0)
-    {
-        lg2::error(
-            "Failed to synchronize data with network channel config over dbus");
-        throw std::ios_base::failure(
-            "Failed to synchronize data with network channel config over dbus");
-    }
+    // if (syncNetworkChannelConfig() != 0)
+    // {
+    //     lg2::error(
+    //         "Failed to synchronize data with network channel config over dbus");
+    //     throw std::ios_base::failure(
+    //         "Failed to synchronize data with network channel config over dbus");
+    // }
 
-    lg2::debug("Successfully completed channel data initialization.");
+    // lg2::debug("Successfully completed channel data initialization.");
     return;
 }
 

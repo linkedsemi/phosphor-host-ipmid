@@ -397,7 +397,10 @@ RspType<uint8_t> // formatVersion
     return responseSuccess(formatVersion);
 }
 
-void registerChannelFunctions() __attribute__((constructor));
+// void registerChannelFunctions() __attribute__((constructor));
+#include <ipmid/netfn_register.hpp>
+DECLEARATION_IPMI_NETFN_FUNC_REGISTER(registerChannelFunctions);
+
 void registerChannelFunctions()
 {
     ipmiChannelInit();
