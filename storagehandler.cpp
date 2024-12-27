@@ -28,7 +28,12 @@
 #include <xyz/openbmc_project/Common/error.hpp>
 #include <xyz/openbmc_project/Logging/SEL/error.hpp>
 
+#ifdef __ZEPHYR__
+#include <ipmid/netfn_register.hpp>
+DECLEARATION_IPMI_NETFN_FUNC_REGISTER(register_netfn_storage_functions);
+#else
 void register_netfn_storage_functions() __attribute__((constructor));
+#endif /* __ZEPHYR__ */
 
 unsigned int g_sel_time = 0xFFFFFFFF;
 namespace ipmi

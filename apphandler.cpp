@@ -58,7 +58,12 @@ static constexpr auto activationIntf =
     "xyz.openbmc_project.Software.Activation";
 static constexpr auto softwareRoot = "/xyz/openbmc_project/software";
 
+#ifdef __ZEPHYR__
+#include <ipmid/netfn_register.hpp>
+DECLEARATION_IPMI_NETFN_FUNC_REGISTER(register_netfn_app_functions);
+#else
 void register_netfn_app_functions() __attribute__((constructor));
+#endif /* __ZEPHYR__ */
 
 using namespace phosphor::logging;
 using namespace sdbusplus::xyz::openbmc_project::Common::Error;
@@ -742,6 +747,8 @@ auto ipmiAppGetSelfTestResults() -> ipmi::RspType<uint8_t, uint8_t>
     //      [2] 1b = Internal Use Area of BMC FRU corrupted.
     //      [1] 1b = controller update 'boot block' firmware corrupted.
     //      [0] 1b = controller operational firmware corrupted.
+
+    printk("%s\n", __FUNCTION__);
     constexpr uint8_t notImplemented = 0x56;
     constexpr uint8_t zero = 0;
     return ipmi::responseSuccess(notImplemented, zero);

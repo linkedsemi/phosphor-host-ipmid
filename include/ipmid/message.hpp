@@ -126,7 +126,9 @@ struct Payload
         if (raw.size() != 0 && std::uncaught_exceptions() == 0 && !trailingOk &&
             !unpackCheck && !unpackError)
         {
+#if 0
             log<level::ERR>("Failed to check request for full unpack");
+#endif /* 0 */
         }
     }
 

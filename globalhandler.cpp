@@ -16,7 +16,12 @@ static constexpr auto match = "bmc0";
 using namespace phosphor::logging;
 using BMC = sdbusplus::xyz::openbmc_project::State::server::BMC;
 
+#ifdef __ZEPHYR__
+#include <ipmid/netfn_register.hpp>
+DECLEARATION_IPMI_NETFN_FUNC_REGISTER(register_netfn_global_functions);
+#else
 void register_netfn_global_functions() __attribute__((constructor));
+#endif /* __ZEPHYR__*/
 
 void resetBMC()
 {

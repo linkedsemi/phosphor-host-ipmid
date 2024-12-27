@@ -124,7 +124,12 @@ const static boost::container::flat_map<const char*, SensorUnits, CmpStr>
                  {"fan_tach", SensorUnits::rpm},
                  {"power", SensorUnits::watts}}};
 
+#ifdef __ZEPHYR__
+#include <ipmid/netfn_register.hpp>
+DECLEARATION_IPMI_NETFN_FUNC_REGISTER(registerSensorFunctions);
+#else
 void registerSensorFunctions() __attribute__((constructor));
+#endif /* __ZEPHYR__*/
 
 static sdbusplus::bus::match_t sensorAdded(
     *getSdBus(),

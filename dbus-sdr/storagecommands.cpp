@@ -131,7 +131,12 @@ ManagedObjectType frus;
 // we unfortunately have to build a map of hashes in case there is a
 // collision to verify our dev-id
 boost::container::flat_map<uint8_t, std::pair<uint16_t, uint8_t>> deviceHashes;
+#ifdef __ZEPHYR__
+#include <ipmid/netfn_register.hpp>
+DECLEARATION_IPMI_NETFN_FUNC_REGISTER(registerStorageFunctions);
+#else
 void registerStorageFunctions() __attribute__((constructor));
+#endif /* __ZEPHYR__ */
 
 bool writeFru(const std::vector<uint8_t>& fru)
 {

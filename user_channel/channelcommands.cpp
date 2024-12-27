@@ -399,7 +399,13 @@ RspType<uint8_t> // formatVersion
     return responseSuccess(formatVersion);
 }
 
+#ifdef __ZEPHYR__
+#include <ipmid/netfn_register.hpp>
+DECLEARATION_IPMI_NETFN_FUNC_REGISTER(registerChannelFunctions);
+#else
 void registerChannelFunctions() __attribute__((constructor));
+#endif /* __ZEPHYR__ */
+
 void registerChannelFunctions()
 {
     ipmiChannelInit();

@@ -9,7 +9,12 @@
 #include <ipmid-host/cmd.hpp>
 #include <ipmid/api.hpp>
 
+#ifdef __ZEPHYR__
+#include <ipmid/netfn_register.hpp>
+DECLEARATION_IPMI_NETFN_FUNC_REGISTER(register_netfn_app_functions);
+#else
 void register_netfn_app_functions() __attribute__((constructor));
+#endif /* __ZEPHYR__ */
 
 using namespace sdbusplus::xyz::openbmc_project::Control::server;
 

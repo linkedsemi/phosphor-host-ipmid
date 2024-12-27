@@ -75,7 +75,12 @@ static inline auto responseParmNotSupported()
 }
 } // namespace ipmi
 
+#ifdef __ZEPHYR__
+#include <ipmid/netfn_register.hpp>
+DECLEARATION_IPMI_NETFN_FUNC_REGISTER(register_netfn_chassis_functions);
+#else
 void register_netfn_chassis_functions() __attribute__((constructor));
+#endif /* __ZEPHYR__ */
 
 // Host settings in dbus
 // Service name should be referenced by connection name got via object mapper
@@ -1484,8 +1489,10 @@ void createIdentifyTimer()
 {
     if (!identifyTimer)
     {
+#if 0
         identifyTimer =
             std::make_unique<phosphor::Timer>(enclosureIdentifyLedOff);
+#endif /* 0 */
     }
 }
 

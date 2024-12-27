@@ -307,6 +307,8 @@ ChannelConfig::~ChannelConfig()
 
 ChannelConfig::ChannelConfig() : bus(ipmid_get_sd_bus_connection())
 {
+    printk("%s\n", __FUNCTION__);
+#if 0
     std::ofstream mutexCleanUpFile;
     mutexCleanUpFile.open(ipmiChMutexCleanupLockFile,
                           std::ofstream::out | std::ofstream::app);
@@ -333,9 +335,11 @@ ChannelConfig::ChannelConfig() : bus(ipmid_get_sd_bus_connection())
             std::make_unique<boost::interprocess::named_recursive_mutex>(
                 boost::interprocess::open_or_create, ipmiChannelMutex);
     }
+#endif /* 0 */
 
     initChannelPersistData();
 
+#if 0
     sigHndlrLock = boost::interprocess::file_lock(channelNvDataFilename);
     // Register it for single object and single process either netipmid /
     // host-ipmid
@@ -376,6 +380,7 @@ ChannelConfig::ChannelConfig() : bus(ipmid_get_sd_bus_connection())
                     0, std::string(networkIntfObjectBasePath) + "/"),
             [&](sdbusplus::message_t&) { initChannelPersistData(); });
     }
+#endif /* 0 */
 }
 
 bool ChannelConfig::isValidChannel(const uint8_t chNum)
@@ -923,6 +928,7 @@ uint8_t ChannelConfig::getManagementNICID()
 
 int ChannelConfig::loadChannelConfig()
 {
+#if 0
     boost::interprocess::scoped_lock<boost::interprocess::named_recursive_mutex>
         channelLock{*channelMutex};
 
@@ -933,6 +939,7 @@ int ChannelConfig::loadChannelConfig()
         return -EIO;
     }
 
+#endif /* 0 */
     channelData.fill(ChannelProperties{});
 
 #ifdef 0
@@ -1444,8 +1451,10 @@ int ChannelConfig::syncNetworkChannelConfig()
 
 void ChannelConfig::initChannelPersistData()
 {
+#if 0
     boost::interprocess::scoped_lock<boost::interprocess::named_recursive_mutex>
         channelLock{*channelMutex};
+#endif /* 0 */
 
     /* Always read the channel config */
     if (loadChannelConfig() != 0)
@@ -1455,6 +1464,7 @@ void ChannelConfig::initChannelPersistData()
     }
 
     /* Populate the channel persist data */
+#if 0
     if (readChannelPersistData() != 0)
     {
         // Copy default NV data to RW location
@@ -1499,6 +1509,7 @@ void ChannelConfig::initChannelPersistData()
     }
 
     log<level::DEBUG>("Successfully completed channel data initialization.");
+#endif /* 0 */
     return;
 }
 
