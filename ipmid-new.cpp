@@ -849,35 +849,35 @@ static void loadProviders()
 //       ec_(other.ec_) {}
 //
 // +  basic_yield_context() {}
-void ipmid_cmd_test()
-{
-    printk("%s\n", __FUNCTION__);
+// void ipmid_cmd_test()
+// {
+//     printk("%s\n", __FUNCTION__);
     
-    ipmi::NetFn netFn = 6;
-    uint8_t lun = 0;
-    ipmi::Cmd cmd = 4;
-    int channel = 0;
-    int userId = 0;
-    uint32_t sessionId = 0;
-    ipmi::Privilege privilege = ipmi::Privilege::Admin;
-    int rqSA = 0;
-    int hostIdx = 0;
-    ipmi::SecureBuffer data;
-    boost::asio::yield_context yield;
+//     ipmi::NetFn netFn = 6;
+//     uint8_t lun = 0;
+//     ipmi::Cmd cmd = 4;
+//     int channel = 0;
+//     int userId = 0;
+//     uint32_t sessionId = 0;
+//     ipmi::Privilege privilege = ipmi::Privilege::Admin;
+//     int rqSA = 0;
+//     int hostIdx = 0;
+//     ipmi::SecureBuffer data;
+//     boost::asio::yield_context yield;
 
-    auto ctx = std::make_shared<ipmi::Context>(
-        getSdBus(), netFn, lun, cmd, channel, userId, sessionId, privilege,
-        rqSA, hostIdx, yield);
-    auto request = std::make_shared<ipmi::message::Request>(
-        ctx, std::forward<ipmi::SecureBuffer>(data));
+//     auto ctx = std::make_shared<ipmi::Context>(
+//         getSdBus(), netFn, lun, cmd, channel, userId, sessionId, privilege,
+//         rqSA, hostIdx, yield);
+//     auto request = std::make_shared<ipmi::message::Request>(
+//         ctx, std::forward<ipmi::SecureBuffer>(data));
 
-    ipmi::message::Response::ptr response = ipmi::executeIpmiCommand(request);
-    printk("%u, %ld: %#x %#x\n", 
-        response->cc, response->payload.size(), 
-        response->payload.data()[0], response->payload.data()[1]);
+//     ipmi::message::Response::ptr response = ipmi::executeIpmiCommand(request);
+//     printk("%u, %ld: %#x %#x\n", 
+//         response->cc, response->payload.size(), 
+//         response->payload.data()[0], response->payload.data()[1]);
 
-    return;
-}
+//     return;
+// }
 #endif /* __ZEPHYR__ */
 
 #ifdef __ZEPHYR__
