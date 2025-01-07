@@ -1,6 +1,8 @@
 #pragma once
 
+#if 0
 #include <shadow.h>
+#endif /* 0 */
 
 #include <phosphor-logging/elog-errors.hpp>
 #include <xyz/openbmc_project/Common/error.hpp>
@@ -29,19 +31,23 @@ class Lock
     /** @brief Default constructor that just locks the shadow file */
     Lock()
     {
+#if 0
         if (!lckpwdf())
         {
             log<level::ERR>("Locking Shadow failed");
             elog<InternalFailure>();
         }
+#endif /* 0 */
     }
     ~Lock()
     {
+#if 0
         if (!ulckpwdf())
         {
             log<level::ERR>("Un-Locking Shadow failed");
             elog<InternalFailure>();
         }
+#endif /* 0 */
     }
 };
 

@@ -61,7 +61,9 @@ class File
         name(name),
         removeOnExit(removeOnExit)
     {
+#if 0
         fp = fdopen(fd, mode.c_str());
+#endif /* 0 */
     }
 
     ~File()
