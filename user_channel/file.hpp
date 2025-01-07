@@ -57,7 +57,7 @@ class File
     File(int fd, const std::string& name, const std::string& mode,
          bool removeOnExit = false) : name(name), removeOnExit(removeOnExit)
     {
-        fp = fdopen(fd, mode.c_str());
+//        fp = fdopen(fd, mode.c_str());
     }
 
     ~File()
