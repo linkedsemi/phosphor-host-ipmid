@@ -91,13 +91,21 @@ Cc ipmiUserGetUserName(const uint8_t userId, std::string& userName)
 
 Cc ipmiUserSetUserPassword(const uint8_t userId, const char* userPassword)
 {
+#ifdef __ZEPHYR__
+    return ccSuccess;
+#else
     return getUserAccessObject().setUserPassword(userId, userPassword);
+#endif /* __ZEPHYR__ */
 }
 
 Cc ipmiSetSpecialUserPassword(const std::string& userName,
                               const SecureString& userPassword)
 {
+#ifdef __ZEPHYR__
+    return ccSuccess;
+#else
     return getUserAccessObject().setSpecialUserPassword(userName, userPassword);
+#endif /* __ZEPHYR__*/
 }
 
 Cc ipmiUserGetAllCounts(uint8_t& maxChUsers, uint8_t& enabledUsers,

@@ -231,7 +231,9 @@ class UserAccess
      *
      *  @return ccSuccess for success, others for failure.
      */
+#if 0
     Cc setUserPassword(const uint8_t userId, const char* userPassword);
+#endif /* 0 */
 
     /** @brief to set special user password
      *
@@ -240,8 +242,10 @@ class UserAccess
      *
      *  @return ccSuccess for success, others for failure.
      */
+#if 0
     Cc setSpecialUserPassword(const std::string& userName,
                               const SecureString& userPassword);
+#endif /* 0 */
 
     /** @brief to set user privilege and access details
      *
@@ -379,7 +383,11 @@ class UserAccess
     std::vector<std::string> availablePrivileges;
     std::vector<std::string> availableGroups;
     sdbusplus::bus_t bus;
+#ifdef __ZEPHYR__
+    timespec fileLastUpdatedTime;
+#else
     std::timespec fileLastUpdatedTime;
+#endif /* __ZEPHYR__ */
     bool signalHndlrObject = false;
     boost::interprocess::file_lock sigHndlrLock;
     boost::interprocess::file_lock mutexCleanupLock;
@@ -388,7 +396,11 @@ class UserAccess
      *
      *  @return time stamp or -EIO for failure
      */
+#ifdef __ZEPHYR__
+    timespec getUpdatedFileTime();
+#else
     std::timespec getUpdatedFileTime();
+#endif /* __ZEPHYR__ */
 
     /** @brief function to available system privileges and groups
      *

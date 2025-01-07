@@ -237,11 +237,13 @@ void PasswdMgr::initPasswordMap(void)
     // TODO  phosphor-host-ipmid#170 phosphor::user::shadow::Lock lock{};
     SecureString dataBuf;
 
+#if 0
     if (readPasswdFileData(dataBuf) != 0)
     {
         log<level::DEBUG>("Error in reading the encrypted pass file");
         return;
     }
+#endif/* 0 */
 
     if (dataBuf.size() != 0)
     {
@@ -266,7 +268,9 @@ void PasswdMgr::initPasswordMap(void)
     }
 
     // Update the timestamp
+#if 0
     fileLastUpdatedTime = getUpdatedFileTime();
+#endif /* 0 */
     return;
 }
 
@@ -478,11 +482,13 @@ int PasswdMgr::updatePasswdSpecialFile(const std::string& userName,
     }
 
     // Set the file mode as read-write for owner only
+#if 0
     if (fchmod(fileno((temp)()), S_IRUSR | S_IWUSR) < 0)
     {
         log<level::DEBUG>("Error setting fchmod for temp file");
         return -EIO;
     }
+#endif /* 0 */
 
     const EVP_MD* digest = EVP_sha256();
     size_t hashLen = EVP_MD_block_size(digest);

@@ -19,7 +19,9 @@
 #include "channel_layer.hpp"
 #include "channel_mgmt.hpp"
 
+#if 0
 #include <security/pam_appl.h>
+#endif /* 0 */
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -618,6 +620,7 @@ bool UserAccess::isValidUserName(const std::string& userName)
  *  @return the response in pam response structure.
  */
 
+#if 0
 static int pamFunctionConversation(int numMsg, const struct pam_message** msg,
                                    struct pam_response** resp, void* appdataPtr)
 {
@@ -674,6 +677,7 @@ static int pamFunctionConversation(int numMsg, const struct pam_message** msg,
 
     return PAM_CONV_ERR;
 }
+#endif /* 0 */
 
 /** @brief Updating the PAM password
  *
@@ -684,6 +688,7 @@ static int pamFunctionConversation(int numMsg, const struct pam_message** msg,
  *  @return status
  */
 
+#if 0
 int pamUpdatePasswd(const char* username, const char* password)
 {
     const struct pam_conv localConversation = {pamFunctionConversation,
@@ -794,6 +799,7 @@ Cc UserAccess::setUserPassword(const uint8_t userId, const char* userPassword)
         }
     }
 }
+#endif /* 0 */
 
 Cc UserAccess::setUserEnabledState(const uint8_t userId,
                                    const bool& enabledState)
@@ -1510,7 +1516,11 @@ void UserAccess::deleteUserIndex(const size_t& usrIdx)
 
 void UserAccess::checkAndReloadUserData()
 {
+#ifdef __ZEPHYR__
+    timespec updateTime = getUpdatedFileTime();
+#else
     std::timespec updateTime = getUpdatedFileTime();
+#endif /* __ZEPHYR__ */
     if ((updateTime.tv_sec != fileLastUpdatedTime.tv_sec ||
          updateTime.tv_nsec != fileLastUpdatedTime.tv_nsec) ||
         (updateTime.tv_sec == 0 && updateTime.tv_nsec == 0))
@@ -1565,7 +1575,11 @@ void UserAccess::getSystemPrivAndGroups()
     return;
 }
 
+#ifdef __ZEPHYR__
+timespec UserAccess::getUpdatedFileTime()
+#else
 std::timespec UserAccess::getUpdatedFileTime()
+#endif /* __ZEPHYR__ */
 {
     struct stat fileStat;
     if (stat(ipmiUserDataFile, &fileStat) != 0)

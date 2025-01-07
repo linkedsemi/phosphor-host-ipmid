@@ -34,6 +34,9 @@ if(CONFIG_OPENBMC_PHOSPHOR_HOST_IPMID)
         ${ZEPHYR_CURRENT_MODULE_DIR}/scripts/inventory-sensor-gen.cpp
         ${ZEPHYR_CURRENT_MODULE_DIR}/scripts/sensor-gen.cpp
         ${ZEPHYR_CURRENT_MODULE_DIR}/storageaddsel.cpp
+        ${ZEPHYR_CURRENT_MODULE_DIR}/user_channel/user_layer.cpp
+        ${ZEPHYR_CURRENT_MODULE_DIR}/user_channel/user_mgmt.cpp
+        ${ZEPHYR_CURRENT_MODULE_DIR}/user_channel/passwd_mgr.cpp
     )
     zephyr_library_include_directories(${ZEPHYR_CURRENT_MODULE_DIR}/zephyr)
     zephyr_library_include_directories(${ZEPHYR_CURRENT_MODULE_DIR}/)
