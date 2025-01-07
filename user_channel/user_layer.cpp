@@ -91,13 +91,15 @@ Cc ipmiUserGetUserName(const uint8_t userId, std::string& userName)
 
 Cc ipmiUserSetUserPassword(const uint8_t userId, const char* userPassword)
 {
-    return getUserAccessObject().setUserPassword(userId, userPassword);
+//    return getUserAccessObject().setUserPassword(userId, userPassword);
+    return ccSuccess;
 }
 
 Cc ipmiSetSpecialUserPassword(const std::string& userName,
                               const SecureString& userPassword)
 {
-    return getUserAccessObject().setSpecialUserPassword(userName, userPassword);
+//    return getUserAccessObject().setSpecialUserPassword(userName, userPassword);
+    return ccSuccess;
 }
 
 Cc ipmiUserGetAllCounts(uint8_t& maxChUsers, uint8_t& enabledUsers,

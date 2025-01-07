@@ -232,7 +232,7 @@ class UserAccess
      *
      *  @return ccSuccess for success, others for failure.
      */
-    Cc setUserPassword(const uint8_t userId, const char* userPassword);
+//    Cc setUserPassword(const uint8_t userId, const char* userPassword);
 
     /** @brief to set special user password
      *
@@ -241,8 +241,8 @@ class UserAccess
      *
      *  @return ccSuccess for success, others for failure.
      */
-    Cc setSpecialUserPassword(const std::string& userName,
-                              const SecureString& userPassword);
+//    Cc setSpecialUserPassword(const std::string& userName,
+//                              const SecureString& userPassword);
 
     /** @brief to set user privilege and access details
      *
@@ -380,7 +380,7 @@ class UserAccess
     std::vector<std::string> availablePrivileges;
     std::vector<std::string> availableGroups;
     sdbusplus::bus_t bus;
-    std::timespec fileLastUpdatedTime;
+    timespec fileLastUpdatedTime;
     bool signalHndlrObject = false;
     boost::interprocess::file_lock sigHndlrLock;
     boost::interprocess::file_lock mutexCleanupLock;
@@ -389,7 +389,7 @@ class UserAccess
      *
      *  @return time stamp or -EIO for failure
      */
-    std::timespec getUpdatedFileTime();
+    timespec getUpdatedFileTime();
 
     /** @brief function to available system privileges and groups
      *

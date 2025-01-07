@@ -19,7 +19,7 @@
 #include "channel_layer.hpp"
 #include "channel_mgmt.hpp"
 
-#include <security/pam_appl.h>
+//#include <security/pam_appl.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -615,62 +615,62 @@ bool UserAccess::isValidUserName(const std::string& userName)
  *  @return the response in pam response structure.
  */
 
-static int pamFunctionConversation(int numMsg, const struct pam_message** msg,
-                                   struct pam_response** resp, void* appdataPtr)
-{
-    if (appdataPtr == nullptr)
-    {
-        return PAM_CONV_ERR;
-    }
-
-    if (numMsg <= 0 || numMsg >= PAM_MAX_NUM_MSG)
-    {
-        return PAM_CONV_ERR;
-    }
-
-    for (int i = 0; i < numMsg; ++i)
-    {
-        /* Ignore all PAM messages except prompting for hidden input */
-        if (msg[i]->msg_style != PAM_PROMPT_ECHO_OFF)
-        {
-            continue;
-        }
-
-        /* Assume PAM is only prompting for the password as hidden input */
-        /* Allocate memory only when PAM_PROMPT_ECHO_OFF is encounterred */
-
-        char* appPass = reinterpret_cast<char*>(appdataPtr);
-        size_t appPassSize = std::strlen(appPass);
-
-        if (appPassSize >= PAM_MAX_RESP_SIZE)
-        {
-            return PAM_CONV_ERR;
-        }
-
-        char* pass = reinterpret_cast<char*>(malloc(appPassSize + 1));
-        if (pass == nullptr)
-        {
-            return PAM_BUF_ERR;
-        }
-
-        void* ptr =
-            calloc(static_cast<size_t>(numMsg), sizeof(struct pam_response));
-        if (ptr == nullptr)
-        {
-            free(pass);
-            return PAM_BUF_ERR;
-        }
-
-        std::strncpy(pass, appPass, appPassSize + 1);
-
-        *resp = reinterpret_cast<pam_response*>(ptr);
-        resp[i]->resp = pass;
-
-        return PAM_SUCCESS;
-    }
-
-    return PAM_CONV_ERR;
-}
+//static int pamFunctionConversation(int numMsg, const struct pam_message** msg,
+//                                   struct pam_response** resp, void* appdataPtr)
+//{
+//    if (appdataPtr == nullptr)
+//    {
+//        return PAM_CONV_ERR;
+//    }
+//
+//    if (numMsg <= 0 || numMsg >= PAM_MAX_NUM_MSG)
+//    {
+//        return PAM_CONV_ERR;
+//    }
+//
+//    for (int i = 0; i < numMsg; ++i)
+//    {
+//        /* Ignore all PAM messages except prompting for hidden input */
+//        if (msg[i]->msg_style != PAM_PROMPT_ECHO_OFF)
+//        {
+//            continue;
+//        }
+//
+//        /* Assume PAM is only prompting for the password as hidden input */
+//        /* Allocate memory only when PAM_PROMPT_ECHO_OFF is encounterred */
+//
+//        char* appPass = reinterpret_cast<char*>(appdataPtr);
+//        size_t appPassSize = std::strlen(appPass);
+//
+//        if (appPassSize >= PAM_MAX_RESP_SIZE)
+//        {
+//            return PAM_CONV_ERR;
+//        }
+//
+//        char* pass = reinterpret_cast<char*>(malloc(appPassSize + 1));
+//        if (pass == nullptr)
+//        {
+//            return PAM_BUF_ERR;
+//        }
+//
+//        void* ptr =
+//            calloc(static_cast<size_t>(numMsg), sizeof(struct pam_response));
+//        if (ptr == nullptr)
+//        {
+//            free(pass);
+//            return PAM_BUF_ERR;
+//        }
+//
+//        std::strncpy(pass, appPass, appPassSize + 1);
+//
+//        *resp = reinterpret_cast<pam_response*>(ptr);
+//        resp[i]->resp = pass;
+//
+//        return PAM_SUCCESS;
+//    }
+//
+//    return PAM_CONV_ERR;
+//}
 
 /** @brief Updating the PAM password
  *
@@ -680,7 +680,7 @@ static int pamFunctionConversation(int numMsg, const struct pam_message** msg,
  *
  *  @return status
  */
-
+/*
 int pamUpdatePasswd(const char* username, const char* password)
 {
     const struct pam_conv localConversation = {pamFunctionConversation,
@@ -791,7 +791,7 @@ Cc UserAccess::setUserPassword(const uint8_t userId, const char* userPassword)
         }
     }
 }
-
+*/
 Cc UserAccess::setUserEnabledState(const uint8_t userId,
                                    const bool& enabledState)
 {
@@ -1500,7 +1500,7 @@ void UserAccess::deleteUserIndex(const size_t& usrIdx)
 
 void UserAccess::checkAndReloadUserData()
 {
-    std::timespec updateTime = getUpdatedFileTime();
+    timespec updateTime = getUpdatedFileTime();
     if ((updateTime.tv_sec != fileLastUpdatedTime.tv_sec ||
          updateTime.tv_nsec != fileLastUpdatedTime.tv_nsec) ||
         (updateTime.tv_sec == 0 && updateTime.tv_nsec == 0))
@@ -1554,13 +1554,13 @@ void UserAccess::getSystemPrivAndGroups()
     return;
 }
 
-std::timespec UserAccess::getUpdatedFileTime()
+timespec UserAccess::getUpdatedFileTime()
 {
     struct stat fileStat;
     if (stat(ipmiUserDataFile, &fileStat) != 0)
     {
         lg2::debug("Error in getting last updated time stamp");
-        return std::timespec{0, 0};
+        return timespec{0, 0};
     }
     return fileStat.st_mtim;
 }
