@@ -20,7 +20,8 @@ if(CONFIG_OPENBMC_PHOSPHOR_HOST_IPMID)
         ${ZEPHYR_CURRENT_MODULE_DIR}/chassishandler.cpp
         ${ZEPHYR_CURRENT_MODULE_DIR}/dcmihandler.cpp
         ${ZEPHYR_CURRENT_MODULE_DIR}/ipmisensor.cpp
-        ${ZEPHYR_CURRENT_MODULE_DIR}/transporthandler.cpp
+
+        # ${ZEPHYR_CURRENT_MODULE_DIR}/transporthandler.cpp
         ${ZEPHYR_CURRENT_MODULE_DIR}/globalhandler.cpp
         ${ZEPHYR_CURRENT_MODULE_DIR}/groupext.cpp
         ${ZEPHYR_CURRENT_MODULE_DIR}/selutility.cpp
@@ -34,9 +35,10 @@ if(CONFIG_OPENBMC_PHOSPHOR_HOST_IPMID)
         ${ZEPHYR_CURRENT_MODULE_DIR}/scripts/inventory-sensor-gen.cpp
         ${ZEPHYR_CURRENT_MODULE_DIR}/scripts/sensor-gen.cpp
         ${ZEPHYR_CURRENT_MODULE_DIR}/storageaddsel.cpp
-        ${ZEPHYR_CURRENT_MODULE_DIR}/user_channel/user_layer.cpp
-        ${ZEPHYR_CURRENT_MODULE_DIR}/user_channel/user_mgmt.cpp
-        ${ZEPHYR_CURRENT_MODULE_DIR}/user_channel/passwd_mgr.cpp
+
+        # ${ZEPHYR_CURRENT_MODULE_DIR}/user_channel/user_layer.cpp
+        # ${ZEPHYR_CURRENT_MODULE_DIR}/user_channel/user_mgmt.cpp
+        # ${ZEPHYR_CURRENT_MODULE_DIR}/user_channel/passwd_mgr.cpp
     )
     zephyr_library_include_directories(${ZEPHYR_CURRENT_MODULE_DIR}/zephyr)
     zephyr_library_include_directories(${ZEPHYR_CURRENT_MODULE_DIR}/)
@@ -44,9 +46,13 @@ if(CONFIG_OPENBMC_PHOSPHOR_HOST_IPMID)
     zephyr_include_directories(${ZEPHYR_CURRENT_MODULE_DIR}/include)
     zephyr_include_directories(${ZEPHYR_CURRENT_MODULE_DIR}/)
 
-    # zephyr_library_compile_definitions(_GNU_SOURCE)
+    zephyr_library_compile_definitions(
+        _GNU_SOURCE
+        _GLIBCXX_HAVE_ALIGNED_ALLOC
+    )
+
     zephyr_linker_sources(
-        ROM_START
+        RODATA
         ipmi_netfn_register.ld
     )
 endif()
