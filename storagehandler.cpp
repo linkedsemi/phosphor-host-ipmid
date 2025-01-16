@@ -876,7 +876,9 @@ ipmi::RspType<uint8_t,  // SDR version
 void register_netfn_storage_functions()
 {
     selCacheMapInitialized = false;
+#if 0
     initSELCache();
+#endif /* 0 */
     // Handlers with dbus-sdr handler implementation.
     // Do not register the hander if it dynamic sensors stack is used.
 
