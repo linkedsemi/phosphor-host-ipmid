@@ -49,6 +49,8 @@
 #include <utility>
 #include <vector>
 
+#include "zbusplus.h"
+
 namespace fs = std::filesystem;
 
 using namespace phosphor::logging;
@@ -574,6 +576,8 @@ auto executionEntry(boost::asio::yield_context yield, sdbusplus::message_t& m,
                "SESSIONID", lg2::hex, sessionId, "PRIVILEGE",
                static_cast<uint8_t>(privilege), "RQSA", lg2::hex, rqSA);
 
+    printk("[IPMI] netFn %#x, lun %#x, cmd %#x\n", netFn, lun, cmd);
+
     auto ctx = std::make_shared<ipmi::Context>(
         getSdBus(), netFn, lun, cmd, channel, userId, sessionId, privilege,
         rqSA, hostIdx, yield);
@@ -840,8 +844,10 @@ static void loadProviders()
 extern "C" int ipmid_main(int argc, char* argv[])
 {
     // Connect to system bus
+    printk("io_context\n");
     auto io = std::make_shared<boost::asio::io_context>();
 
+    printk("sd_bus_default_system\n");
     if (argc > 1 && std::string(argv[1]) == "-session")
     {
         sd_bus_default_user(&bus);
@@ -850,11 +856,16 @@ extern "C" int ipmid_main(int argc, char* argv[])
     {
         sd_bus_default_system(&bus);
     }
+
+    printk("init_zbus_observers\n");
+	init_zbus_observers(bus, "app1");
+
+    printk("setIoContext\n");
     setIoContext(io);
 
     printk("setSdBus\n");
-    // auto sdbusp = std::make_shared<sdbusplus::asio::connection>(*io, bus);
-    std::shared_ptr<sdbusplus::asio::connection> sdbusp;
+    auto sdbusp = std::make_shared<sdbusplus::asio::connection>(*io, bus);
+    // std::shared_ptr<sdbusplus::asio::connection> sdbusp;
     setSdBus(sdbusp);
 
     // TODO: Hack to keep the sdEvents running.... Not sure why the sd_event
@@ -866,7 +877,7 @@ extern "C" int ipmid_main(int argc, char* argv[])
 
     // TODO: Remove all vestiges of sd_event from phosphor-host-ipmid
     //       until that is done, add the sd_event wrapper to the io object
-    sdbusplus::asio::sd_event_wrapper sdEvents(*io);
+    // sdbusplus::asio::sd_event_wrapper sdEvents(*io);
 
     printk("cmdManager\n");
     // cmdManager = std::make_unique<phosphor::host::command::Manager>(*sdbusp);
@@ -916,20 +927,20 @@ extern "C" int ipmid_main(int argc, char* argv[])
 
     printk("server\n");
     // Add bindings for inbound IPMI requests
-    // auto server = sdbusplus::asio::object_server(sdbusp);
+    auto server = sdbusplus::asio::object_server(sdbusp);
 
     printk("add_interface\n");
-    // auto iface = server.add_interface("/xyz/openbmc_project/Ipmi",
-    //                                   "xyz.openbmc_project.Ipmi.Server");
+    auto iface = server.add_interface("/xyz/openbmc_project/Ipmi",
+                                      "xyz.openbmc_project.Ipmi.Server");
 
     printk("register_method\n");
-    // iface->register_method("execute", ipmi::executionEntry);
+    iface->register_method("execute", ipmi::executionEntry);
 
     printk("initialize\n");
-    // iface->initialize();
+    iface->initialize();
 
     printk("run\n");
-    // io->run();
+    io->run();
 
     // ipmid_cmd_test();
 
@@ -943,4 +954,52 @@ extern "C" int ipmid_main(int argc, char* argv[])
     // providers.clear();
 
     std::exit(exitCode);
+}
+
+using IpmiDbusRspType = std::tuple<uint8_t, uint8_t, uint8_t, uint8_t, std::vector<uint8_t>>;
+extern "C" void sender_task(void* p1, void* p2, void* p3)
+{
+	auto conn = getSdBus();
+
+    uint8_t netFn = 6;
+    uint8_t lun = 0;
+    uint8_t cmd = 4;
+    std::vector<uint8_t> commandData;
+    std::map<std::string, ipmi::Value> options = {
+        {"userId", ipmi::Value(static_cast<int>(1))},
+        {"privilege", ipmi::Value(static_cast<int>(4))},
+        {"currentSessionId", ipmi::Value(static_cast<int>(0))}
+    };
+
+    printk("sender_task start\n");
+    while(1)
+    {
+        printk("do sender_task\n");
+        conn->async_method_call(
+        [&](const boost::system::error_code ec,
+                     const IpmiDbusRspType& response) {
+            if (ec)
+            {
+                printk("Error getting dbus names: {ERROR}", "ERROR",
+                           ec.message());
+                // std::exit(EXIT_FAILURE);
+                return;
+            }
+
+            const uint8_t& cc = std::get<3>(response);
+            const std::vector<uint8_t>& responseData = std::get<4>(response);
+            printk("CC %#X, response len %u\n, data: ", cc, responseData.size());
+            for (auto i : responseData)
+            {
+                printk("%#X ", responseData[i]);
+            }
+            printk("\n");
+        },
+        "xyz.openbmc_project.Ipmi.Host",
+        "/xyz/openbmc_project/Ipmi",
+        "xyz.openbmc_project.Ipmi.Server",
+        "execute", netFn, lun, cmd, commandData, options);
+
+        k_sleep(K_SECONDS(2));
+    }
 }
