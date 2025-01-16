@@ -368,7 +368,11 @@ void updateOwners(sdbusplus::asio::connection& conn, const std::string& name)
                 name.substr(std::strlen(ipmiDbusChannelMatch) + 1);
             try
             {
+#ifdef __ZEPHYR__
+                uint8_t channel = 0;
+#else
                 uint8_t channel = getChannelByName(chName);
+#endif /* __ZEPHYR__*/
                 uniqueNameToChannelNumber[nameOwner] = channel;
                 log<level::INFO>("New interface mapping",
                                  entry("INTERFACE=%s", name.c_str()),
@@ -438,7 +442,11 @@ void nameChangeHandler(sdbusplus::message_t& message)
         std::string chName = name.substr(std::strlen(ipmiDbusChannelMatch) + 1);
         try
         {
+#ifdef __ZEPHYR__
+            uint8_t channel = 0;
+#else
             uint8_t channel = getChannelByName(chName);
+#endif /* __ZEPHYR__*/
             uniqueNameToChannelNumber[newOwner] = channel;
             log<level::INFO>("New interface mapping",
                              entry("INTERFACE=%s", name.c_str()),
@@ -467,7 +475,11 @@ uint8_t channelFromMessage(sdbusplus::message_t& msg)
     // FIXME: currently internal connections are ephemeral and hard to pin down
     try
     {
+#ifdef __ZEPHYR__
+        return 0;
+#else
         return getChannelByName(intraBmcName);
+#endif
     }
     catch (const std::exception& e)
     {
@@ -480,13 +492,16 @@ auto executionEntry(boost::asio::yield_context yield, sdbusplus::message_t& m,
                     NetFn netFn, uint8_t lun, Cmd cmd, ipmi::SecureBuffer& data,
                     std::map<std::string, ipmi::Value>& options)
 {
+    printk("[IPMI] executionEntry: netFn %#x, lun %#x, cmd %#x\n", netFn, lun, cmd);
     const auto dbusResponse =
         [netFn, lun, cmd](Cc cc, const ipmi::SecureBuffer& data = {}) {
             constexpr uint8_t netFnResponse = 0x01;
             uint8_t retNetFn = netFn | netFnResponse;
             return std::make_tuple(retNetFn, lun, cmd, cc, data);
         };
+#if 0
     std::string sender = m.get_sender();
+#endif /* 0 */
     Privilege privilege = Privilege::None;
     int rqSA = 0;
     int hostIdx = 0;
@@ -494,6 +509,11 @@ auto executionEntry(boost::asio::yield_context yield, sdbusplus::message_t& m,
     uint32_t sessionId = 0;
 
     // figure out what channel the request came in on
+#ifdef __ZEPHYR__
+    uint8_t channel = 0;
+    printk("[IPMI] call executeIpmiCommand: netFn %#x, lun %#x, cmd %#x\n", netFn, lun, cmd);
+#else
+#if 0
     uint8_t channel = channelFromMessage(m);
     if (channel == invalidChannel)
     {
@@ -564,8 +584,8 @@ auto executionEntry(boost::asio::yield_context yield, sdbusplus::message_t& m,
                       entry("SESSIONID=0x%X", sessionId),
                       entry("PRIVILEGE=%u", static_cast<uint8_t>(privilege)),
                       entry("RQSA=%x", rqSA));
-
-    printk("[IPMI] netFn %#x, lun %#x, cmd %#x\n", netFn, lun, cmd);
+#endif /* 0 */
+#endif /* __ZEPHYR__ */
 
     auto ctx = std::make_shared<ipmi::Context>(getSdBus(), netFn, lun, cmd,
                                                channel, userId, sessionId,
@@ -1004,17 +1024,25 @@ extern "C" int ipmid_main(int argc, char* argv[])
 using IpmiDbusRspType = std::tuple<uint8_t, uint8_t, uint8_t, uint8_t, std::vector<uint8_t>>;
 extern "C" void sender_task(void* p1, void* p2, void* p3)
 {
+    // printk("[sender_task] io_context\n");
+    // auto io = std::make_shared<boost::asio::io_context>();
+    // // sd_bus *bus = NULL;
+
+    // printk("[sender_task] sd_bus_default_system\n");
+    // sd_bus_default_system(&bus);
+
+    // printk("[sender_task] connection\n");
+    // auto conn = std::make_shared<sdbusplus::asio::connection>(*io, bus);
+
+    printk("[sender_task] getSdBus\n");
 	auto conn = getSdBus();
 
+    printk("[sender_task] var init\n");
     uint8_t netFn = 6;
     uint8_t lun = 0;
     uint8_t cmd = 4;
     std::vector<uint8_t> commandData;
-    std::map<std::string, ipmi::Value> options = {
-        {"userId", ipmi::Value(static_cast<int>(1))},
-        {"privilege", ipmi::Value(static_cast<int>(4))},
-        {"currentSessionId", ipmi::Value(static_cast<int>(0))}
-    };
+    std::map<std::string, ipmi::Value> options;
 
     printk("sender_task start\n");
     while(1)
@@ -1023,13 +1051,13 @@ extern "C" void sender_task(void* p1, void* p2, void* p3)
         conn->async_method_call(
         [&](const boost::system::error_code ec,
                      const IpmiDbusRspType& response) {
-            if (ec)
-            {
-                printk("Error getting dbus names: {ERROR}", "ERROR",
-                           ec.message());
-                // std::exit(EXIT_FAILURE);
-                return;
-            }
+            printk("async_method_call: callback\n");
+            // if (ec)
+            // {
+            //     printk("Error getting dbus names: %s", ec.message().c_str());
+            //     // std::exit(EXIT_FAILURE);
+            //     return;
+            // }
 
             const uint8_t& cc = std::get<3>(response);
             const std::vector<uint8_t>& responseData = std::get<4>(response);
