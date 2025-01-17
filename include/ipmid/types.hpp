@@ -8,6 +8,11 @@
 #include <string>
 #include <variant>
 
+#ifdef __ZEPHYR__
+#undef OPENSSL_cleanse
+extern "C" void OPENSSL_cleanse(void *ptr, size_t len);
+#endif /* __ZEPHYR__*/
+
 namespace ipmi
 {
 
