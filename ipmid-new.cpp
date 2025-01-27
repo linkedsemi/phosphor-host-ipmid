@@ -492,17 +492,21 @@ auto executionEntry(boost::asio::yield_context yield, sdbusplus::message_t& m,
                     NetFn netFn, uint8_t lun, Cmd cmd, ipmi::SecureBuffer& data,
                     std::map<std::string, ipmi::Value>& options)
 {
-    printk("[IPMI] executionEntry: netFn %#x, lun %#x, cmd %#x\n", netFn, lun, cmd);
+    printk_thread("executionEntry: netFn %#x, lun %#x, cmd %#x", netFn, lun, cmd);
     const auto dbusResponse =
         [netFn, lun, cmd](Cc cc, const ipmi::SecureBuffer& data = {}) {
             constexpr uint8_t netFnResponse = 0x01;
             uint8_t retNetFn = netFn | netFnResponse;
             return std::make_tuple(retNetFn, lun, cmd, cc, data);
         };
+#ifdef __ZEPHYR__
 #if 0
     std::string sender = m.get_sender();
 #endif /* 0 */
+    Privilege privilege = Privilege::Admin;
+#else
     Privilege privilege = Privilege::None;
+#endif /* __ZEPHYR__ */
     int rqSA = 0;
     int hostIdx = 0;
     uint8_t userId = 0; // undefined user
@@ -594,6 +598,13 @@ auto executionEntry(boost::asio::yield_context yield, sdbusplus::message_t& m,
         ctx, std::forward<ipmi::SecureBuffer>(data));
     message::Response::ptr response = executeIpmiCommand(request);
 
+    printk_thread("call executeIpmiCommand return: cc %#x, resp len %u, resp data: ", response->cc, response->payload.raw.size());
+    printk("    ");
+    for (auto i : response->payload.raw)
+    {
+        printk("%#x ", i);
+    }
+    printk("\n");
     return dbusResponse(response->cc, response->payload.raw);
 }
 
@@ -931,7 +942,6 @@ extern "C" int ipmid_main(int argc, char* argv[])
 
     printk("setSdBus\n");
     auto sdbusp = std::make_shared<sdbusplus::asio::connection>(*io, bus);
-    // std::shared_ptr<sdbusplus::asio::connection> sdbusp;
     setSdBus(sdbusp);
 
     // TODO: Hack to keep the sdEvents running.... Not sure why the sd_event
@@ -1024,44 +1034,47 @@ extern "C" int ipmid_main(int argc, char* argv[])
 using IpmiDbusRspType = std::tuple<uint8_t, uint8_t, uint8_t, uint8_t, std::vector<uint8_t>>;
 extern "C" void sender_task(void* p1, void* p2, void* p3)
 {
-    // printk("[sender_task] io_context\n");
-    // auto io = std::make_shared<boost::asio::io_context>();
-    // // sd_bus *bus = NULL;
+    printk_thread("io_context");
+    auto io = std::make_shared<boost::asio::io_context>();
+    sd_bus *busTmp = NULL;
 
-    // printk("[sender_task] sd_bus_default_system\n");
-    // sd_bus_default_system(&bus);
+    printk_thread("sd_bus_default_user");
+    sd_bus_default_user(&busTmp);
 
-    // printk("[sender_task] connection\n");
-    // auto conn = std::make_shared<sdbusplus::asio::connection>(*io, bus);
+    printk_thread("init_zbus_observers");
+    init_zbus_observers(busTmp, "app2");
 
-    printk("[sender_task] getSdBus\n");
-	auto conn = getSdBus();
+    printk_thread("connection");
+    auto conn = std::make_shared<sdbusplus::asio::connection>(*io, busTmp);
 
-    printk("[sender_task] var init\n");
+    // printk("[sender_task] getSdBus\n");
+	// auto conn = getSdBus();
+
+    printk_thread("var init");
     uint8_t netFn = 6;
     uint8_t lun = 0;
     uint8_t cmd = 4;
     std::vector<uint8_t> commandData;
     std::map<std::string, ipmi::Value> options;
 
-    printk("sender_task start\n");
+    printk_thread("start");
     while(1)
     {
-        printk("do sender_task\n");
+        printk("\n");
+        printk_thread("do sender_task");
         conn->async_method_call(
         [&](const boost::system::error_code ec,
                      const IpmiDbusRspType& response) {
-            printk("async_method_call: callback\n");
-            // if (ec)
-            // {
-            //     printk("Error getting dbus names: %s", ec.message().c_str());
-            //     // std::exit(EXIT_FAILURE);
-            //     return;
-            // }
+            if (ec)
+            {
+                printk_thread("Error getting dbus names: %s", ec.message().c_str());
+                // std::exit(EXIT_FAILURE);
+                return;
+            }
 
             const uint8_t& cc = std::get<3>(response);
             const std::vector<uint8_t>& responseData = std::get<4>(response);
-            printk("CC %#X, response len %u\n, data: ", cc, responseData.size());
+            printk_thread("CC %#x, response len %u\n, data: ", cc, responseData.size());
             for (auto i : responseData)
             {
                 printk("%#X ", responseData[i]);
