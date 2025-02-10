@@ -925,15 +925,17 @@ extern "C" int ipmid_main(int argc, char* argv[])
     auto io = std::make_shared<boost::asio::io_context>();
 
     printk("sd_bus_default_system\n");
-    if (argc > 1 && std::string(argv[1]) == "-session")
-    {
-        sd_bus_default_user(&bus);
-    }
-    else
-    {
-        sd_bus_default_system(&bus);
-    }
+    // if (argc > 1 && std::string(argv[1]) == "-session")
+    // {
+    //     sd_bus_default_user(&bus);
+    // }
+    // else
+    // {
+    //     sd_bus_default_system(&bus);
+    // }
+    sd_bus_open_system(&bus);
 
+    sd_bus_request_name(bus, "ipmid_main", 0);
     printk("init_zbus_observers\n");
 	init_zbus_observers(bus, "app1");
 
@@ -1030,47 +1032,20 @@ extern "C" int ipmid_main(int argc, char* argv[])
 
     std::exit(exitCode);
 }
-
 using IpmiDbusRspType = std::tuple<uint8_t, uint8_t, uint8_t, uint8_t, std::vector<uint8_t>>;
-extern "C" void sender_task(void* p1, void* p2, void* p3)
+void do_sender_task(sdbusplus::asio::connection& conn, boost::asio::steady_timer& timer, uint8_t netFn, uint8_t lun, uint8_t cmd, const std::vector<uint8_t>& commandData, std::map<std::string, ipmi::Value>& options)
 {
-    printk_thread("io_context");
-    auto io = std::make_shared<boost::asio::io_context>();
-    sd_bus *busTmp = NULL;
-
-    printk_thread("sd_bus_default_user");
-    sd_bus_default_user(&busTmp);
-
-    printk_thread("init_zbus_observers");
-    init_zbus_observers(busTmp, "app2");
-
-    printk_thread("connection");
-    auto conn = std::make_shared<sdbusplus::asio::connection>(*io, busTmp);
-
-    // printk("[sender_task] getSdBus\n");
-	// auto conn = getSdBus();
-
-    printk_thread("var init");
-    uint8_t netFn = 6;
-    uint8_t lun = 0;
-    uint8_t cmd = 4;
-    std::vector<uint8_t> commandData;
-    std::map<std::string, ipmi::Value> options;
-
-    printk_thread("start");
-    while(1)
-    {
-        printk("\n");
-        printk_thread("do sender_task");
-        conn->async_method_call(
+    printk("\n");
+    printk_thread("do sender_task");
+    conn.async_method_call(
         [&](const boost::system::error_code ec,
-                     const IpmiDbusRspType& response) {
-            if (ec)
-            {
-                printk_thread("Error getting dbus names: %s", ec.message().c_str());
-                // std::exit(EXIT_FAILURE);
-                return;
-            }
+            const IpmiDbusRspType& response) {
+            printk_thread("Got response");
+            // if (ec)
+            // {
+            //     printk_thread("Error getting dbus names: %s", ec.message().c_str());
+            //     return;
+            // }
 
             const uint8_t& cc = std::get<3>(response);
             const std::vector<uint8_t>& responseData = std::get<4>(response);
@@ -1085,9 +1060,46 @@ extern "C" void sender_task(void* p1, void* p2, void* p3)
         "/xyz/openbmc_project/Ipmi",
         "xyz.openbmc_project.Ipmi.Server",
         "execute", netFn, lun, cmd, commandData, options);
+        timer.expires_after(std::chrono::seconds(1));
+        timer.async_wait([&](const boost::system::error_code ec) {
+            do_sender_task(conn, timer, netFn, lun, cmd, commandData, options);
+        });
+}
 
-        k_sleep(K_SECONDS(2));
-    }
+extern "C" void sender_task(void* p1, void* p2, void* p3)
+{
+    printk_thread("io_context");
+    auto io = std::make_shared<boost::asio::io_context>();
+    sd_bus *busTmp = NULL;
+
+    printk_thread("sd_bus_default_user");
+    // sd_bus_default_user(&busTmp);
+    sd_bus_open_system(&busTmp);
+    // busTmp->unique_name = "sender_task";
+    sd_bus_request_name(busTmp, "sender_task", 0);
+    printk_thread("init_zbus_observers");
+    init_zbus_observers(busTmp, "app2");
+
+    printk_thread("connection");
+    auto conn = sdbusplus::asio::connection(*io, busTmp);
+    auto timer = boost::asio::steady_timer(*io);
+    // printk("[sender_task] getSdBus\n");
+	// auto conn = getSdBus();
+
+    printk_thread("var init");
+    uint8_t netFn = 6;
+    uint8_t lun = 0;
+    uint8_t cmd = 4;
+    std::vector<uint8_t> commandData;
+    std::map<std::string, ipmi::Value> options;
+
+    printk_thread("start");
+    timer.expires_after(std::chrono::seconds(1));
+    timer.async_wait([&](const boost::system::error_code ec) {
+        do_sender_task(conn, timer, netFn, lun, cmd, commandData, options);
+    });
+    io->run();
+    
 }
 #else
 int main(int argc, char* argv[])
