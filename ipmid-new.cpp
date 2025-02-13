@@ -1032,6 +1032,143 @@ extern "C" int ipmid_main(int argc, char* argv[])
 
     std::exit(exitCode);
 }
+
+int test_ipmi_dbus_sendrecv(sd_bus *bus, uint8_t netfn, uint8_t lun, uint8_t cmd)
+{
+	static const char *destination = "xyz.openbmc_project.Ipmi.Host";
+	static const char *object_path = "/xyz/openbmc_project/Ipmi";
+	static const char *interface = "xyz.openbmc_project.Ipmi.Server";
+	static const char *method_name = "execute";
+	static const char SD_BUS_TYPE_3_BYTES[] = {
+		SD_BUS_TYPE_BYTE, SD_BUS_TYPE_BYTE, SD_BUS_TYPE_BYTE, 0
+	};
+	static const char SD_BUS_TYPE_4_BYTES[] = {
+		SD_BUS_TYPE_BYTE, SD_BUS_TYPE_BYTE,
+		SD_BUS_TYPE_BYTE, SD_BUS_TYPE_BYTE, 0
+	};
+	static const char SD_BUS_TYPE_DICT_OF_VARIANTS[] = {
+		SD_BUS_TYPE_ARRAY,
+		SD_BUS_TYPE_DICT_ENTRY_BEGIN,
+		SD_BUS_TYPE_STRING, SD_BUS_TYPE_VARIANT,
+		SD_BUS_TYPE_DICT_ENTRY_END, 0
+	};
+	static const char SD_BUS_TYPE_IPMI_RESPONSE[] = {
+		SD_BUS_TYPE_BYTE, SD_BUS_TYPE_BYTE,
+		SD_BUS_TYPE_BYTE, SD_BUS_TYPE_BYTE,
+		SD_BUS_TYPE_ARRAY, SD_BUS_TYPE_BYTE, 0
+	};
+
+	sd_bus_message *request = NULL;
+	int rc;
+	sd_bus_error error = SD_BUS_ERROR_NULL;
+	sd_bus_message* reply = NULL;
+	uint8_t recv_netfn;
+	uint8_t recv_lun;
+	uint8_t recv_cmd;
+	uint8_t recv_cc;
+	const void *data;
+	size_t data_len;
+
+	/* The D-Bus xyz.openbmc_project.Ipmi.Server.execute interface
+	 * looks like this:
+	 *
+	 * Request:
+	 *   byte: net function
+	 *   byte: lun
+	 *   byte: command
+	 *   byte array: data (possibly zero length)
+	 *   array of (string,variant): options
+	 * Response:
+	 *   byte: net function
+	 *   byte: lun
+	 *   byte: command
+	 *   byte: completion code
+	 *   byte array: response data (possibly zero length)
+	 */
+	rc = sd_bus_message_new_method_call(bus, &request, destination,
+	                                    object_path, interface,
+					    method_name);
+	if (rc < 0) {
+		printk_thread("%s: failed to create message: %s\n",
+		        __func__, strerror(-rc));
+		goto out_no_free;
+	}
+	/* pack the header: netfn, lun, cmd */
+	rc = sd_bus_message_append(request, SD_BUS_TYPE_3_BYTES, netfn,
+	                           lun, cmd);
+	if (rc < 0) {
+		printk_thread("%s: failed to append parameters\n", __func__);
+		goto out_free_request;
+	}
+	/* pack the variable length data */
+	rc = sd_bus_message_append_array(request, SD_BUS_TYPE_BYTE,
+	                                 NULL, 0);
+	if (rc < 0) {
+		printk_thread("%s: failed to append body\n", __func__);
+		goto out_free_request;
+	}
+
+	/* Options are only needed for session-based channels, but
+	 * in order to fulfill the correct signature, an empty array
+	 * must be packed */
+	rc = sd_bus_message_append(request, SD_BUS_TYPE_DICT_OF_VARIANTS,
+	                           NULL, 0);
+	if (rc < 0) {
+		printk_thread("%s: failed to append options\n", __func__);
+		goto out_free_request;
+	}
+
+	rc = sd_bus_call(bus, request, 0, &error, &reply);
+	if (rc < 0) {
+		printk_thread("%s: failed to send dbus message (%s), rc %d\n",
+		        __func__, error.message, rc);
+		goto out_free_request;
+	}
+
+	/* unpack the response; check that it has the expected types */
+	rc = sd_bus_message_enter_container(reply, SD_BUS_TYPE_STRUCT,
+	                                    SD_BUS_TYPE_IPMI_RESPONSE);
+	if (rc < 0) {
+		printk_thread("%s: failed to parse reply\n", __func__);
+		goto out_free_reply;
+	}
+	/* read the header: CC netfn lun cmd */
+	rc = sd_bus_message_read(reply, SD_BUS_TYPE_4_BYTES, &recv_netfn,
+	                         &recv_lun, &recv_cmd, &recv_cc);
+	if (rc < 0) {
+		printk_thread("%s: failed to read reply\n", __func__);
+		goto out_free_reply;
+	}
+	/* read the variable length data */
+	rc = sd_bus_message_read_array(reply, SD_BUS_TYPE_BYTE,
+	                               &data, &data_len);
+	if (rc < 0) {
+		printk_thread("%s: failed to read reply data\n", __func__);
+		goto out_free_reply;
+	}
+	rc = sd_bus_message_exit_container(reply);
+	if (rc < 0) {
+		printk_thread("%s: final unpack of message failed\n",
+		        __func__);
+		goto out_free_reply;
+	}
+
+    printk_thread("recv data:");
+    for (uint32_t loop = 0; loop < data_len; loop++)
+    {
+        printk(" %02x", ((uint8_t*)data)[loop]);
+    }
+    printk("\n");
+
+out_free_reply:
+	/* message unref will free resources owned by the message */
+	sd_bus_message_unref(reply);
+out_free_request:
+	sd_bus_message_unref(request);
+out_no_free:
+	return 0;
+}
+
 using IpmiDbusRspType = std::tuple<uint8_t, uint8_t, uint8_t, uint8_t, std::vector<uint8_t>>;
 void do_sender_task(sdbusplus::asio::connection& conn, boost::asio::steady_timer& timer, uint8_t netFn, uint8_t lun, uint8_t cmd, const std::vector<uint8_t>& commandData, std::map<std::string, ipmi::Value>& options)
 {
@@ -1082,7 +1219,7 @@ extern "C" void sender_task(void* p1, void* p2, void* p3)
 
     printk_thread("connection");
     auto conn = sdbusplus::asio::connection(*io, busTmp);
-    auto timer = boost::asio::steady_timer(*io);
+    // auto timer = boost::asio::steady_timer(*io);
     // printk("[sender_task] getSdBus\n");
 	// auto conn = getSdBus();
 
@@ -1094,11 +1231,13 @@ extern "C" void sender_task(void* p1, void* p2, void* p3)
     std::map<std::string, ipmi::Value> options;
 
     printk_thread("start");
-    timer.expires_after(std::chrono::seconds(1));
-    timer.async_wait([&](const boost::system::error_code ec) {
-        do_sender_task(conn, timer, netFn, lun, cmd, commandData, options);
-    });
-    io->run();
+    // timer.expires_after(std::chrono::seconds(1));
+    // timer.async_wait([&](const boost::system::error_code ec) {
+    //   do_sender_task(conn, timer, netFn, lun, cmd, commandData, options);
+    // });
+    // io->run();
+
+    test_ipmi_dbus_sendrecv(busTmp, 6, 0, 4);
     
 }
 #else
