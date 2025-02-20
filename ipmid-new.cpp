@@ -937,7 +937,7 @@ extern "C" int ipmid_main(int argc, char* argv[])
 
     sd_bus_request_name(bus, "ipmid_main", 0);
     printk("init_zbus_observers\n");
-	init_zbus_observers(bus, "app1");
+	init_zbus_observers(bus, "ipmid_host");
 
     printk("setIoContext\n");
     setIoContext(io);
@@ -1215,7 +1215,7 @@ extern "C" void sender_task(void* p1, void* p2, void* p3)
     // busTmp->unique_name = "sender_task";
     sd_bus_request_name(busTmp, "sender_task", 0);
     printk_thread("init_zbus_observers");
-    init_zbus_observers(busTmp, "app2");
+    init_zbus_observers(busTmp, "test");
 
     printk_thread("connection");
     auto conn = sdbusplus::asio::connection(*io, busTmp);
