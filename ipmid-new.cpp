@@ -982,7 +982,7 @@ extern "C" int ipmid_main(int argc, char* argv[])
     //     ipmi::nameChangeHandler);
 
     printk("doListNames\n");
-    // ipmi::doListNames(*io, *sdbusp);
+    ipmi::doListNames(*io, *sdbusp);
 
     printk("stopAsioRunLoop\n");
     int exitCode = 0;
@@ -1000,7 +1000,7 @@ extern "C" int ipmid_main(int argc, char* argv[])
     // registerSignalHandler(ipmi::prioOpenBmcBase, SIGTERM, stopAsioRunLoop);
 
     printk("request_name\n");
-    // sdbusp->request_name("xyz.openbmc_project.Ipmi.Host");
+    sdbusp->request_name("xyz.openbmc_project.Ipmi.Host");
 
     printk("server\n");
     // Add bindings for inbound IPMI requests
