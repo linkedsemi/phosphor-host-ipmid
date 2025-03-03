@@ -644,7 +644,7 @@ ipmi::RspType<bool, // stdPayload0ipmiReserved
 
 #ifdef __ZEPHYR__
 #include <ipmid/netfn_register.hpp>
-DECLEARATION_IPMI_NETFN_FUNC_REGISTER(registerUserIpmiFunctions);
+DECLARATION_IPMI_NETFN_FUNC_REGISTER(registerUserIpmiFunctions);
 #else
 void registerUserIpmiFunctions() __attribute__((constructor));
 #endif /* __ZEPHYR__ */

@@ -126,7 +126,7 @@ const static boost::container::flat_map<const char*, SensorUnits, CmpStr>
 
 #ifdef __ZEPHYR__
 #include <ipmid/netfn_register.hpp>
-DECLEARATION_IPMI_NETFN_FUNC_REGISTER(registerSensorFunctions);
+DECLARATION_IPMI_NETFN_FUNC_REGISTER(registerSensorFunctions);
 #else
 void registerSensorFunctions() __attribute__((constructor));
 #endif /* __ZEPHYR__*/

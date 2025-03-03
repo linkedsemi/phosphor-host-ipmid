@@ -4,7 +4,7 @@
 #define GRPEXT_GET_GROUP_CMD 0
 #ifdef __ZEPHYR__
 #include <ipmid/netfn_register.hpp>
-DECLEARATION_IPMI_NETFN_FUNC_REGISTER(register_netfn_groupext_functions);
+DECLARATION_IPMI_NETFN_FUNC_REGISTER(register_netfn_groupext_functions);
 #else
 void register_netfn_groupext_functions() __attribute__((constructor));
 #endif /* __ZEPHYR__ */

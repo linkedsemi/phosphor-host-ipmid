@@ -133,7 +133,7 @@ ManagedObjectType frus;
 boost::container::flat_map<uint8_t, std::pair<uint16_t, uint8_t>> deviceHashes;
 #ifdef __ZEPHYR__
 #include <ipmid/netfn_register.hpp>
-DECLEARATION_IPMI_NETFN_FUNC_REGISTER(registerStorageFunctions);
+DECLARATION_IPMI_NETFN_FUNC_REGISTER(registerStorageFunctions);
 #else
 void registerStorageFunctions() __attribute__((constructor));
 #endif /* __ZEPHYR__ */

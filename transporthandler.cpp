@@ -1862,7 +1862,7 @@ RspType<message::Payload> getSolConfParams(Context::ptr ctx,
 
 #ifdef __ZEPHYR__
 #include <ipmid/netfn_register.hpp>
-DECLEARATION_IPMI_NETFN_FUNC_REGISTER(register_netfn_transport_functions);
+DECLARATION_IPMI_NETFN_FUNC_REGISTER(register_netfn_transport_functions);
 #else
 void register_netfn_transport_functions() __attribute__((constructor));
 #endif /* __ZEPHYR__ */

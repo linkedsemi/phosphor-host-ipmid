@@ -77,7 +77,7 @@ static inline auto responseParmNotSupported()
 
 #ifdef __ZEPHYR__
 #include <ipmid/netfn_register.hpp>
-DECLEARATION_IPMI_NETFN_FUNC_REGISTER(register_netfn_chassis_functions);
+DECLARATION_IPMI_NETFN_FUNC_REGISTER(register_netfn_chassis_functions);
 #else
 void register_netfn_chassis_functions() __attribute__((constructor));
 #endif /* __ZEPHYR__ */
