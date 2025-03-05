@@ -2,7 +2,6 @@ if(CONFIG_OPENBMC_PHOSPHOR_HOST_IPMID)
     zephyr_library()
     zephyr_library_sources(
         ${ZEPHYR_CURRENT_MODULE_DIR}/ipmid-new.cpp
-        ${ZEPHYR_CURRENT_MODULE_DIR}/libipmid/entity_map_json.cpp
         ${ZEPHYR_CURRENT_MODULE_DIR}/libipmid/sdbus-asio.cpp
         ${ZEPHYR_CURRENT_MODULE_DIR}/libipmid/signals.cpp
         ${ZEPHYR_CURRENT_MODULE_DIR}/libipmid/systemintf-sdbus.cpp
@@ -20,6 +19,7 @@ if(CONFIG_OPENBMC_PHOSPHOR_HOST_IPMID)
         ${ZEPHYR_CURRENT_MODULE_DIR}/chassishandler.cpp
         ${ZEPHYR_CURRENT_MODULE_DIR}/dcmihandler.cpp
         ${ZEPHYR_CURRENT_MODULE_DIR}/ipmisensor.cpp
+        ${ZEPHYR_CURRENT_MODULE_DIR}/entity_map_json.cpp
 
         # ${ZEPHYR_CURRENT_MODULE_DIR}/transporthandler.cpp
         ${ZEPHYR_CURRENT_MODULE_DIR}/globalhandler.cpp

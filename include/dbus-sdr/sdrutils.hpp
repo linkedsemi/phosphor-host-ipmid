@@ -34,9 +34,6 @@
 #pragma once
 
 static constexpr bool debug = false;
-#ifdef __ZEPHYR__
-extern "C" int strverscmp (const char *, const char *);
-#endif /* __ZEPHYR__ */
 
 struct CmpStrVersion
 {

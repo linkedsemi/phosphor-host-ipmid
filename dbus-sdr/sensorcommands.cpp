@@ -248,11 +248,7 @@ static void getSensorMaxMin(const DbusInterfaceMap& sensorMap, double& max,
             double value = std::visit(VariantToDoubleVisitor(), lower->second);
             if (std::isfinite(value))
             {
-#ifdef __ZEPHYR__
-                min = fmin(value, min);
-#else
                 min = std::min(value, min);
-#endif /* __ZEPHYR__ */
             }
         }
         if (upper != critical->second.end())
@@ -260,11 +256,7 @@ static void getSensorMaxMin(const DbusInterfaceMap& sensorMap, double& max,
             double value = std::visit(VariantToDoubleVisitor(), upper->second);
             if (std::isfinite(value))
             {
-#ifdef __ZEPHYR__
-                max = fmax(value, max);
-#else
                 max = std::max(value, max);
-#endif /* __ZEPHYR__ */
             }
         }
     }
@@ -278,11 +270,7 @@ static void getSensorMaxMin(const DbusInterfaceMap& sensorMap, double& max,
             double value = std::visit(VariantToDoubleVisitor(), lower->second);
             if (std::isfinite(value))
             {
-#ifdef __ZEPHYR__
-                min = fmin(value, min);
-#else
                 min = std::min(value, min);
-#endif /* __ZEPHYR__ */
             }
         }
         if (upper != warning->second.end())
@@ -290,11 +278,7 @@ static void getSensorMaxMin(const DbusInterfaceMap& sensorMap, double& max,
             double value = std::visit(VariantToDoubleVisitor(), upper->second);
             if (std::isfinite(value))
             {
-#ifdef __ZEPHYR__
-                max = fmax(value, max);
-#else
                 max = std::max(value, max);
-#endif /* __ZEPHYR__ */
             }
         }
     }

@@ -96,10 +96,17 @@ Host::FirmwareCondition Host::currentFirmwareCondition() const
     ipmid_send_cmd_to_host(std::move(cmd));
 
     // Timer to ensure this function returns something within a reasonable time
+#ifdef __ZEPHYR__
+    sdbusplus::Timer hostAckTimer([hostCondition]() {
+        log<level::DEBUG>("currentFirmwareCondition: timer expired!");
+        *(hostCondition.get()) = Host::FirmwareCondition::Off;
+    });
+#else
     phosphor::Timer hostAckTimer([hostCondition]() {
         log<level::DEBUG>("currentFirmwareCondition: timer expired!");
         *(hostCondition.get()) = Host::FirmwareCondition::Off;
     });
+#endif /* __ZEPHYR__*/
 
     // Wait 1 second past the ATN_ACK timeout to ensure we wait for as
     // long as the timeout

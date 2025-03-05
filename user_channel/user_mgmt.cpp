@@ -1585,7 +1585,11 @@ std::timespec UserAccess::getUpdatedFileTime()
     if (stat(ipmiUserDataFile, &fileStat) != 0)
     {
         log<level::DEBUG>("Error in getting last updated time stamp");
+#ifdef __ZEPHYR__
+        return timespec{0, 0};
+#else
         return std::timespec{0, 0};
+#endif /* __ZEPHYR__ */
     }
     return fileStat.st_mtim;
 }

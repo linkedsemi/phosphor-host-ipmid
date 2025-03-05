@@ -1456,12 +1456,14 @@ void ChannelConfig::initChannelPersistData()
         channelLock{*channelMutex};
 #endif /* 0 */
 
+#if 0
     /* Always read the channel config */
     if (loadChannelConfig() != 0)
     {
         log<level::ERR>("Failed to read channel config file");
         throw std::ios_base::failure("Failed to load channel configuration");
     }
+#endif /* 0 */
 
     /* Populate the channel persist data */
 #if 0

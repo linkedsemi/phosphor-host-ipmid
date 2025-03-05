@@ -3,9 +3,7 @@
 #include "chassishandler.hpp"
 
 #include <arpa/inet.h>
-#if 0
 #include <endian.h>
-#endif /* 0 */
 #include <limits.h>
 #include <mapper.h>
 #include <netinet/in.h>
@@ -38,8 +36,13 @@
 #include <xyz/openbmc_project/State/Host/server.hpp>
 #include <xyz/openbmc_project/State/PowerOnHours/server.hpp>
 
+#ifdef __ZEPHYR__
+std::unique_ptr<sdbusplus::Timer> identifyTimer
+    __attribute__((init_priority(101)));
+#else
 std::unique_ptr<phosphor::Timer> identifyTimer
     __attribute__((init_priority(101)));
+#endif /* __ZEPHYR__ */
 
 static ChassisIDState chassisIDState = ChassisIDState::reserved;
 static constexpr uint8_t setParmVersion = 0x01;

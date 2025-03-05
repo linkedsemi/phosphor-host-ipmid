@@ -395,8 +395,10 @@ void doListNames(boost::asio::io_context& io, sdbusplus::asio::connection& conn)
                      std::vector<std::string> busNames) {
             if (ec)
             {
+#if 0
                 log<level::ERR>("Error getting dbus names");
                 std::exit(EXIT_FAILURE);
+#endif /* 0 */
                 return;
             }
             // Try to make startup consistent
@@ -594,6 +596,9 @@ auto executionEntry(boost::asio::yield_context yield, sdbusplus::message_t& m,
     auto ctx = std::make_shared<ipmi::Context>(getSdBus(), netFn, lun, cmd,
                                                channel, userId, sessionId,
                                                privilege, rqSA, hostIdx, yield);
+    auto ctx = std::make_shared<ipmi::Context>(getSdBus(), netFn, lun, cmd,
+                                               channel, userId, sessionId,
+                                               privilege, rqSA, hostIdx, yield);
     auto request = std::make_shared<ipmi::message::Request>(
         ctx, std::forward<ipmi::SecureBuffer>(data));
     message::Response::ptr response = executeIpmiCommand(request);
@@ -612,6 +617,7 @@ auto executionEntry(boost::asio::yield_context yield, sdbusplus::message_t& m,
  *
  *  RAII wrapper for dlopen so that dlclose gets called on exit
  */
+#if 0
 struct IpmiProvider
 {
   public:
@@ -634,9 +640,7 @@ struct IpmiProvider
                           entry("PROVIDER=%s", name.c_str()));
         try
         {
-#if 0
             addr = dlopen(name.c_str(), RTLD_NOW);
-#endif /* 0 */
         }
         catch (const std::exception& e)
         {
@@ -663,22 +667,15 @@ struct IpmiProvider
     {
         if (isOpen())
         {
-#if 0
             dlclose(addr);
-#endif /* 0 */
         }
     }
     bool isOpen() const
     {
-#ifdef __ZEPHYR__
-        return true;
-#else
         return (nullptr != addr);
-#endif /* __ZEPHYR__ */
     }
 };
 
-#if 0
 // Plugin libraries need to contain .so either at the end or in the middle
 constexpr const char ipmiPluginExtn[] = ".so";
 
@@ -722,6 +719,21 @@ std::forward_list<IpmiProvider> loadProviders(const fs::path& ipmiLibsPath)
 #endif /* 0 */
 
 } // namespace ipmi
+
+#ifdef __ZEPHYR__
+/* Netfn register handlers init */
+typedef void (*func_ptr)(void);
+extern func_ptr __ipmi_netfn_register_array_start[];
+extern func_ptr __ipmi_netfn_register_array_end[];
+static void loadProviders()
+{
+    printk("IPMI register init...\n");
+    for (func_ptr *func = __ipmi_netfn_register_array_start; func < __ipmi_netfn_register_array_end; func++) {
+		printk("init item %08p, function ptr %08p\n", func, *func);
+		(*func)();
+	}
+}
+#endif /* __ZEPHYR__ */
 
 #ifdef ALLOW_DEPRECATED_API
 /* legacy registration */
@@ -865,18 +877,6 @@ extern void setIoContext(std::shared_ptr<boost::asio::io_context>& newIo);
 extern void setSdBus(std::shared_ptr<sdbusplus::asio::connection>& newBus);
 
 #ifdef __ZEPHYR__
-/* Netfn register handlers init */
-typedef void (*func_ptr)(void);
-extern func_ptr __ipmi_netfn_register_array_start[];
-extern func_ptr __ipmi_netfn_register_array_end[];
-static void loadProviders()
-{
-    printk("IPMI register init...\n");
-    for (func_ptr *func = __ipmi_netfn_register_array_start; func < __ipmi_netfn_register_array_end; func++) {
-		printk("init item %08p, function ptr %08p\n", func, *func);
-		(*func)();
-	}
-}
 
 // 使用该测试需要修改boost/asio/spawn.hpp, 增加一个basic_yield_context空的构造函数
 // basic_yield_context(
@@ -925,14 +925,6 @@ extern "C" int ipmid_main(int argc, char* argv[])
     auto io = std::make_shared<boost::asio::io_context>();
 
     printk("sd_bus_default_system\n");
-    // if (argc > 1 && std::string(argv[1]) == "-session")
-    // {
-    //     sd_bus_default_user(&bus);
-    // }
-    // else
-    // {
-    //     sd_bus_default_system(&bus);
-    // }
     sd_bus_open_system(&bus);
 
     sd_bus_request_name(bus, "ipmid_main", 0);
@@ -942,7 +934,14 @@ extern "C" int ipmid_main(int argc, char* argv[])
     printk("setIoContext\n");
     setIoContext(io);
 
-    printk("setSdBus\n");
+    // if (argc > 1 && std::string(argv[1]) == "-session")
+    // {
+    //     sd_bus_default_user(&bus);
+    // }
+    // else
+    // {
+    //     sd_bus_default_system(&bus);
+    // }
     auto sdbusp = std::make_shared<sdbusplus::asio::connection>(*io, bus);
     setSdBus(sdbusp);
 
@@ -995,12 +994,13 @@ extern "C" int ipmid_main(int argc, char* argv[])
             exitCode = signalNumber;
             return SignalResponse::breakExecution;
         };
+
     printk("registerSignalHandler\n");
     // registerSignalHandler(ipmi::prioOpenBmcBase, SIGINT, stopAsioRunLoop);
     // registerSignalHandler(ipmi::prioOpenBmcBase, SIGTERM, stopAsioRunLoop);
 
     printk("request_name\n");
-    sdbusp->request_name("xyz.openbmc_project.Ipmi.Host");
+    // sdbusp->request_name("xyz.openbmc_project.Ipmi.Host");
 
     printk("server\n");
     // Add bindings for inbound IPMI requests
@@ -1170,7 +1170,7 @@ out_no_free:
 }
 
 using IpmiDbusRspType = std::tuple<uint8_t, uint8_t, uint8_t, uint8_t, std::vector<uint8_t>>;
-void do_sender_task(sdbusplus::asio::connection& conn, boost::asio::steady_timer& timer, uint8_t netFn, uint8_t lun, uint8_t cmd, const std::vector<uint8_t>& commandData, std::map<std::string, ipmi::Value>& options)
+void do_sender_task(sdbusplus::asio::connection& conn, uint8_t netFn, uint8_t lun, uint8_t cmd, const std::vector<uint8_t>& commandData, std::map<std::string, ipmi::Value>& options)
 {
     printk("\n");
     printk_thread("do sender_task");
@@ -1178,18 +1178,20 @@ void do_sender_task(sdbusplus::asio::connection& conn, boost::asio::steady_timer
         [&](const boost::system::error_code ec,
             const IpmiDbusRspType& response) {
             printk_thread("Got response");
-            // if (ec)
-            // {
-            //     printk_thread("Error getting dbus names: %s", ec.message().c_str());
-            //     return;
-            // }
+            if (ec)
+            {
+                printk_thread("Error getting dbus names: %s", ec.message().c_str());
+                return;
+            }
 
             const uint8_t& cc = std::get<3>(response);
             const std::vector<uint8_t>& responseData = std::get<4>(response);
-            printk_thread("CC %#x, response len %u\n, data: ", cc, responseData.size());
+            printk_thread("netfn %#x, lun %#x, cmd %#x, cc %#x, response len %u\n, data: ",
+                std::get<0>(response), std::get<1>(response), std::get<2>(response),
+                cc, responseData.size());
             for (auto i : responseData)
             {
-                printk("%#X ", responseData[i]);
+                printk("%#02x ", i);
             }
             printk("\n");
         },
@@ -1197,10 +1199,16 @@ void do_sender_task(sdbusplus::asio::connection& conn, boost::asio::steady_timer
         "/xyz/openbmc_project/Ipmi",
         "xyz.openbmc_project.Ipmi.Server",
         "execute", netFn, lun, cmd, commandData, options);
-        timer.expires_after(std::chrono::seconds(1));
-        timer.async_wait([&](const boost::system::error_code ec) {
-            do_sender_task(conn, timer, netFn, lun, cmd, commandData, options);
-        });
+
+        // timer.expires_after(std::chrono::seconds(1));
+        // timer.async_wait([&](const boost::system::error_code ec) {
+        //     do_sender_task(conn, timer, netFn, lun, cmd, commandData, options);
+        // });
+}
+
+void signal_test(sdbusplus::asio::connection& conn)
+{
+
 }
 
 extern "C" void sender_task(void* p1, void* p2, void* p3)
@@ -1233,8 +1241,12 @@ extern "C" void sender_task(void* p1, void* p2, void* p3)
     printk_thread("start");
     // timer.expires_after(std::chrono::seconds(1));
     // timer.async_wait([&](const boost::system::error_code ec) {
-    //   do_sender_task(conn, timer, netFn, lun, cmd, commandData, options);
+        // do_sender_task(conn, timer, netFn, lun, cmd, commandData, options);
     // });
+    // do_sender_task(conn, netFn, lun, cmd, commandData, options);
+
+    // k_sleep(K_SECONDS(2));
+
     // io->run();
 
     test_ipmi_dbus_sendrecv(busTmp, 6, 0, 4);
