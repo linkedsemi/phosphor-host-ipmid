@@ -62,7 +62,9 @@ using namespace phosphor::logging;
 
 PasswdMgr::PasswdMgr()
 {
+#if 0
     restrictFilesPermission();
+#endif /* 0 */
     initPasswordMap();
 }
 

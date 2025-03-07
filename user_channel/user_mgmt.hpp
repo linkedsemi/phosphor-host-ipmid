@@ -23,6 +23,7 @@
 #include <ipmid/api.hpp>
 #include <sdbusplus/bus.hpp>
 #include <variant>
+#include <user_mgr.hpp>
 
 namespace ipmi
 {
@@ -231,9 +232,7 @@ class UserAccess
      *
      *  @return ccSuccess for success, others for failure.
      */
-#if 0
     Cc setUserPassword(const uint8_t userId, const char* userPassword);
-#endif /* 0 */
 
     /** @brief to set special user password
      *
@@ -242,10 +241,8 @@ class UserAccess
      *
      *  @return ccSuccess for success, others for failure.
      */
-#if 0
     Cc setSpecialUserPassword(const std::string& userName,
                               const SecureString& userPassword);
-#endif /* 0 */
 
     /** @brief to set user privilege and access details
      *

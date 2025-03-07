@@ -753,7 +753,20 @@ bool pamUserCheckAuthenticate(std::string_view username,
     }
     return true;
 }
+#endif /* 0 */
 
+#ifdef __ZEPHYR__
+Cc UserAccess::setSpecialUserPassword(const std::string& userName,
+                                      const SecureString& userPassword)
+{
+    if (phosphor::user::UserMgr::zephyrUpdatePassword(userName, userPassword.c_str()) != ZEPHYR_PAM_SUCCESS)
+    {
+        log<level::DEBUG>("Failed to update password");
+        return ccUnspecifiedError;
+    }
+    return ccSuccess;
+}
+#else
 Cc UserAccess::setSpecialUserPassword(const std::string& userName,
                                       const SecureString& userPassword)
 {
@@ -764,7 +777,44 @@ Cc UserAccess::setSpecialUserPassword(const std::string& userName,
     }
     return ccSuccess;
 }
+#endif /* __ZEPHYR__ */
 
+#ifdef __ZEPHYR__
+Cc UserAccess::setUserPassword(const uint8_t userId, const char* userPassword)
+{
+    std::string userName;
+    if (ipmiUserGetUserName(userId, userName) != ccSuccess)
+    {
+        log<level::DEBUG>("User Name not found",
+                          entry("USER-ID=%d", (uint8_t)userId));
+        return ccParmOutOfRange;
+    }
+
+    // ipmi::SecureString passwd;
+    // passwd.assign(reinterpret_cast<const char*>(userPassword), 0,
+    //               maxIpmi20PasswordSize);
+    int retval = phosphor::user::UserMgr::zephyrUpdatePassword(userName, userPassword);
+
+    switch (retval)
+    {
+        case ZEPHYR_PAM_SUCCESS:
+        {
+            return ccSuccess;
+        }
+        case ZEPHYR_PAM_AUTHTOK_ERR:
+        {
+            log<level::DEBUG>("Bad authentication token");
+            return ccInvalidFieldRequest;
+        }
+        default:
+        {
+            log<level::DEBUG>("Failed to update password",
+                              entry("USER-ID=%d", (uint8_t)userId));
+            return ccUnspecifiedError;
+        }
+    }
+}
+#else
 Cc UserAccess::setUserPassword(const uint8_t userId, const char* userPassword)
 {
     std::string userName;
@@ -799,7 +849,7 @@ Cc UserAccess::setUserPassword(const uint8_t userId, const char* userPassword)
         }
     }
 }
-#endif /* 0 */
+#endif /* __ZEPHYR__ */
 
 Cc UserAccess::setUserEnabledState(const uint8_t userId,
                                    const bool& enabledState)

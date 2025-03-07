@@ -91,21 +91,15 @@ Cc ipmiUserGetUserName(const uint8_t userId, std::string& userName)
 
 Cc ipmiUserSetUserPassword(const uint8_t userId, const char* userPassword)
 {
-#ifdef __ZEPHYR__
-    return ccSuccess;
-#else
     return getUserAccessObject().setUserPassword(userId, userPassword);
-#endif /* __ZEPHYR__ */
+    return ccSuccess;
 }
 
 Cc ipmiSetSpecialUserPassword(const std::string& userName,
                               const SecureString& userPassword)
 {
-#ifdef __ZEPHYR__
-    return ccSuccess;
-#else
     return getUserAccessObject().setSpecialUserPassword(userName, userPassword);
-#endif /* __ZEPHYR__*/
+    return ccSuccess;
 }
 
 Cc ipmiUserGetAllCounts(uint8_t& maxChUsers, uint8_t& enabledUsers,
@@ -186,7 +180,13 @@ Cc ipmiUserSetPrivilegeAccess(const uint8_t userId, const uint8_t chNum,
 bool ipmiUserPamAuthenticate(std::string_view userName,
                              std::string_view userPassword)
 {
+#ifdef __ZEPHYR__
+    std::string _userName(userName);
+    std::string _userPassword(userPassword);
+    return phosphor::user::UserMgr::zephyrAuthenticate(_userName, _userPassword);
+#else
     return pamUserCheckAuthenticate(userName, userPassword);
+#endif /* __ZEPHYR__ */
 }
 
 Cc ipmiUserSetUserPayloadAccess(const uint8_t chNum, const uint8_t operation,
