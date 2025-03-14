@@ -282,9 +282,6 @@ K_KERNEL_STACK_MEMBER(IPMID_test_task_stack, IPMID_TEST_STACK_SIZE);
 
 static void ipmid_test()
 {
-	printk_thread("Wait 3s...");
-	k_sleep(K_SECONDS(3));
-
     printk_thread("Start IPMI test thread...");
 	k_thread_create(&IPMID_test_thread, IPMID_test_task_stack, K_THREAD_STACK_SIZEOF(IPMID_test_task_stack),
 			sender_task, NULL, NULL, NULL, CONFIG_THREAD_PRI_TEST, 0, K_NO_WAIT);

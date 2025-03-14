@@ -52,6 +52,7 @@
 #include <vector>
 
 #ifdef __ZEPHYR__
+#include <zephyr/kernel.h>
 #include "zbusplus.h"
 #endif /* __ZEPHYR__ */
 
@@ -596,9 +597,6 @@ auto executionEntry(boost::asio::yield_context yield, sdbusplus::message_t& m,
     auto ctx = std::make_shared<ipmi::Context>(getSdBus(), netFn, lun, cmd,
                                                channel, userId, sessionId,
                                                privilege, rqSA, hostIdx, yield);
-    auto ctx = std::make_shared<ipmi::Context>(getSdBus(), netFn, lun, cmd,
-                                               channel, userId, sessionId,
-                                               privilege, rqSA, hostIdx, yield);
     auto request = std::make_shared<ipmi::message::Request>(
         ctx, std::forward<ipmi::SecureBuffer>(data));
     message::Response::ptr response = executeIpmiCommand(request);
@@ -877,20 +875,22 @@ extern void setIoContext(std::shared_ptr<boost::asio::io_context>& newIo);
 extern void setSdBus(std::shared_ptr<sdbusplus::asio::connection>& newBus);
 
 #ifdef __ZEPHYR__
-int ipmid_main(int argc, char* argv[])
+static bool ipmid_init_finished = false;
+
+int ipmid_main()
 {
     // Connect to system bus
-    printk("io_context\n");
+    printk_thread("io_context");
     auto io = std::make_shared<boost::asio::io_context>();
 
-    printk("sd_bus_default_system\n");
+    printk_thread("sd_bus_default_system");
     sd_bus_open_system(&bus);
 
     sd_bus_request_name(bus, "ipmid_main", 0);
-    printk("init_zbus_observers\n");
+    printk_thread("init_zbus_observers");
 	init_zbus_observers(bus, "ipmid_host");
 
-    printk("setIoContext\n");
+    printk_thread("setIoContext");
     setIoContext(io);
 
     // if (argc > 1 && std::string(argv[1]) == "-session")
@@ -906,7 +906,7 @@ int ipmid_main(int argc, char* argv[])
 
     // TODO: Hack to keep the sdEvents running.... Not sure why the sd_event
     //       queue stops running if we don't have a timer that keeps re-arming
-    printk("Timer\n");
+    printk_thread("Timer");
     // sdbusplus::Timer t2([]() { ; });
     // t2.start(std::chrono::microseconds(500000), true);
 
@@ -914,23 +914,23 @@ int ipmid_main(int argc, char* argv[])
     //       until that is done, add the sd_event wrapper to the io object
     // sdbusplus::asio::sd_event_wrapper sdEvents(*io);
 
-    printk("cmdManager\n");
+    printk_thread("cmdManager");
     // cmdManager = std::make_unique<phosphor::host::command::Manager>(*sdbusp);
 
-    printk("loadProviders\n");
+    printk_thread("loadProviders");
     // Register all command providers and filters
     loadProviders();
 
 #ifdef ALLOW_DEPRECATED_API
     // listen on deprecated signal interface for kcs/bt commands
-    printk("oldIpmiInterface\n");
+    printk_thread("oldIpmiInterface");
     // constexpr const char* FILTER = "type='signal',interface='org.openbmc."
     //                                "HostIpmi',member='ReceivedMessage'";
     // sdbusplus::bus::match_t oldIpmiInterface(*sdbusp, FILTER,
     //                                          handleLegacyIpmiCommand);
 #endif /* ALLOW_DEPRECATED_API */
 
-    printk("nameOwnerChanged\n");
+    printk_thread("nameOwnerChanged");
     // set up bus name watching to match channels with bus names
     // sdbusplus::bus::match_t nameOwnerChanged(
     //     *sdbusp,
@@ -939,10 +939,10 @@ int ipmid_main(int argc, char* argv[])
     //             ipmi::ipmiDbusChannelMatch),
     //     ipmi::nameChangeHandler);
 
-    printk("doListNames\n");
+    printk_thread("doListNames");
     ipmi::doListNames(*io, *sdbusp);
 
-    printk("stopAsioRunLoop\n");
+    printk_thread("stopAsioRunLoop");
     int exitCode = 0;
     // set up boost::asio signal handling
     std::function<SignalResponse(int)> stopAsioRunLoop =
@@ -954,42 +954,74 @@ int ipmid_main(int argc, char* argv[])
             return SignalResponse::breakExecution;
         };
 
-    printk("registerSignalHandler\n");
+    printk_thread("registerSignalHandler");
     // registerSignalHandler(ipmi::prioOpenBmcBase, SIGINT, stopAsioRunLoop);
     // registerSignalHandler(ipmi::prioOpenBmcBase, SIGTERM, stopAsioRunLoop);
 
-    printk("request_name\n");
+    printk_thread("request_name");
     // sdbusp->request_name("xyz.openbmc_project.Ipmi.Host");
 
-    printk("server\n");
+    printk_thread("server");
     // Add bindings for inbound IPMI requests
     auto server = sdbusplus::asio::object_server(sdbusp);
 
-    printk("add_interface\n");
+    printk_thread("add_interface");
     auto iface = server.add_interface("/xyz/openbmc_project/Ipmi",
                                       "xyz.openbmc_project.Ipmi.Server");
 
-    printk("register_method\n");
+    printk_thread("register_method");
     iface->register_method("execute", ipmi::executionEntry);
 
-    printk("initialize\n");
+    printk_thread("initialize");
     iface->initialize();
+    printk_thread("initialize end");
 
-    printk("run\n");
+    printk_thread("run");
+    ipmid_init_finished = true;
     io->run();
 
-    // ipmid_cmd_test();
+    // // destroy all the IPMI handlers so the providers can unload safely
+    // ipmi::handlerMap.clear();
+    // ipmi::groupHandlerMap.clear();
+    // ipmi::oemHandlerMap.clear();
+    // ipmi::filterList.clear();
+    // // unload the provider libraries
+    // // providers.clear();
 
-    printk("exit\n");
-    // destroy all the IPMI handlers so the providers can unload safely
-    ipmi::handlerMap.clear();
-    ipmi::groupHandlerMap.clear();
-    ipmi::oemHandlerMap.clear();
-    ipmi::filterList.clear();
-    // unload the provider libraries
-    // providers.clear();
+    // std::exit(exitCode);
 
-    std::exit(exitCode);
+    return 0;
+}
+
+#define CONFIG_THREAD_PRI_IPMI 10
+#define IPMI_THREAD_STACK_SIZE (64 * 1024)
+struct k_thread IPMI_thread;
+K_KERNEL_STACK_MEMBER(IPMI_thread_stack, IPMI_THREAD_STACK_SIZE);
+
+void IPMI_handler(void *arug0, void *arug1, void *arug2)
+{
+    ipmid_main();
+}
+
+int ipmid_init()
+{
+    printk_thread("Start IPMI thread...");
+
+    k_thread_create(&IPMI_thread, IPMI_thread_stack, K_THREAD_STACK_SIZEOF(IPMI_thread_stack),
+            IPMI_handler, NULL, NULL, NULL, CONFIG_THREAD_PRI_IPMI, 0, K_NO_WAIT);
+    k_thread_name_set(&IPMI_thread, "IPMI_thread");
+
+    for (uint32_t loop = 0; loop < 30; loop++)
+    {
+        k_sleep(K_MSEC(100));
+        if (ipmid_init_finished)
+        {
+            k_sleep(K_MSEC(100));
+            return 0;
+        }
+    }
+
+    return -1;
 }
 #else
 int main(int argc, char* argv[])
