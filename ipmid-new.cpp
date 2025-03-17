@@ -993,36 +993,6 @@ int ipmid_main()
     return 0;
 }
 
-#define CONFIG_THREAD_PRI_IPMI 10
-#define IPMI_THREAD_STACK_SIZE (64 * 1024)
-struct k_thread IPMI_thread;
-K_KERNEL_STACK_MEMBER(IPMI_thread_stack, IPMI_THREAD_STACK_SIZE);
-
-void IPMI_handler(void *arug0, void *arug1, void *arug2)
-{
-    ipmid_main();
-}
-
-int ipmid_init()
-{
-    printk_thread("Start IPMI thread...");
-
-    k_thread_create(&IPMI_thread, IPMI_thread_stack, K_THREAD_STACK_SIZEOF(IPMI_thread_stack),
-            IPMI_handler, NULL, NULL, NULL, CONFIG_THREAD_PRI_IPMI, 0, K_NO_WAIT);
-    k_thread_name_set(&IPMI_thread, "IPMI_thread");
-
-    for (uint32_t loop = 0; loop < 30; loop++)
-    {
-        k_sleep(K_MSEC(100));
-        if (ipmid_init_finished)
-        {
-            k_sleep(K_MSEC(100));
-            return 0;
-        }
-    }
-
-    return -1;
-}
 #else
 int main(int argc, char* argv[])
 {
