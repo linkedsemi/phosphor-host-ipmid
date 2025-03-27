@@ -21,6 +21,9 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#ifdef __ZEPHYR__
+#include <user_mgr.hpp>
+#endif /* __ZEPHYR__*/
 
 namespace ipmi
 {

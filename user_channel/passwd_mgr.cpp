@@ -35,6 +35,7 @@
 namespace ipmi
 {
 
+#if 0
 static const char* passwdFileName = "/etc/ipmi_pass";
 static const char* encryptKeyFileName = "/etc/key_file";
 static const size_t maxKeySize = 8;
@@ -57,6 +58,7 @@ struct MetaPassStruct
     size_t padSize;
     size_t macSize;
 };
+#endif /* 0 */
 
 using namespace phosphor::logging;
 
@@ -64,10 +66,11 @@ PasswdMgr::PasswdMgr()
 {
 #if 0
     restrictFilesPermission();
-#endif /* 0 */
     initPasswordMap();
+#endif /* 0 */
 }
 
+#if 0
 void PasswdMgr::restrictFilesPermission(void)
 {
     struct stat st = {};
@@ -88,7 +91,16 @@ void PasswdMgr::restrictFilesPermission(void)
         }
     }
 }
+#endif /* 0 */
 
+#ifdef __ZEPHYR__
+SecureString PasswdMgr::getPasswdByUserName(const std::string& userName)
+{
+    std::string passwd = phosphor::user::UserMgr::getPasswdByUserName(userName);
+    SecureString secureStrPasswd(passwd.c_str());
+    return secureStrPasswd;
+}
+#else
 SecureString PasswdMgr::getPasswdByUserName(const std::string& userName)
 {
     checkAndReload();
@@ -99,7 +111,15 @@ SecureString PasswdMgr::getPasswdByUserName(const std::string& userName)
     }
     return iter->second;
 }
+#endif /* __ZEPHYR__ */
 
+#ifdef __ZEPHYR__
+int PasswdMgr::updateUserEntry(const std::string& userName,
+                               const std::string& newUserName)
+{
+    return 0;
+}
+#else
 int PasswdMgr::updateUserEntry(const std::string& userName,
                                const std::string& newUserName)
 {
@@ -126,7 +146,9 @@ int PasswdMgr::updateUserEntry(const std::string& userName,
     log<level::DEBUG>("Passwd file updated successfully");
     return 0;
 }
+#endif /* __ZEPHYR__ */
 
+#if 0
 void PasswdMgr::checkAndReload(void)
 {
     std::time_t updatedTime = getUpdatedFileTime();
@@ -595,6 +617,7 @@ int PasswdMgr::updatePasswdSpecialFile(const std::string& userName,
         return -EIO;
     }
 
+    // log<level::DEBUG>("Passwd file updated successfully");
     return 0;
 }
 
@@ -608,5 +631,6 @@ std::time_t PasswdMgr::getUpdatedFileTime()
     }
     return fileStat.st_mtime;
 }
+#endif /* 0 */
 
 } // namespace ipmi
