@@ -121,7 +121,11 @@ static uint8_t lastDevId = 0xFF;
 static uint16_t writeBus = invalidBus;
 static uint8_t writeAddr = invalidAddr;
 
+#ifdef __ZEPHYR__
+std::unique_ptr<sdbusplus::Timer> writeTimer = nullptr;
+#else
 std::unique_ptr<phosphor::Timer> writeTimer = nullptr;
+#endif /* __ZEPHYR__ */
 static std::vector<sdbusplus::bus::match_t> fruMatches;
 
 ManagedObjectType frus;
@@ -171,7 +175,11 @@ void writeFruCache()
 
 void createTimers()
 {
+#ifdef __ZEPHYR__
+    writeTimer = std::make_unique<sdbusplus::Timer>(writeFruCache);
+#else
     writeTimer = std::make_unique<phosphor::Timer>(writeFruCache);
+#endif /* __ZEPHYR__ */
 }
 
 void recalculateHashes()

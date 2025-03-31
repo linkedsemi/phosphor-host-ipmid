@@ -727,7 +727,7 @@ static void loadProviders()
 {
     printk("IPMI register init...\n");
     for (func_ptr *func = __ipmi_netfn_register_array_start; func < __ipmi_netfn_register_array_end; func++) {
-		printk("init item %08p, function ptr %08p\n", func, *func);
+		printk("init item %p, function ptr %p\n", func, *func);
 		(*func)();
 	}
 }

@@ -101,7 +101,11 @@ class Manager
     std::queue<CommandHandler> workQueue{};
 
     /** @brief Timer for commands to host */
+  #ifdef __ZEPHYR__
+    sdbusplus::Timer timer;
+  #else
     phosphor::Timer timer;
+  #endif /* __ZEPHYR__ */
 
     /** @brief Match handler for the requested host state */
     sdbusplus::bus::match_t hostTransitionMatch;
