@@ -6,7 +6,7 @@
 
 #include <zephyr/kernel.h>
 
-#include <sd-bus.h>
+#include <systemd/sd-bus.h>
 #include <sdbusplus/asio/connection.hpp>
 
 #include <ipmid/types.hpp>

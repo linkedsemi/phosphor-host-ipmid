@@ -1,5 +1,5 @@
 if(CONFIG_OPENBMC_PHOSPHOR_HOST_IPMID)
-    zephyr_library()
+    zephyr_library_named(phosphor-host-ipmid)
     zephyr_library_sources(
         ${ZEPHYR_CURRENT_MODULE_DIR}/ipmid-new.cpp
         ${ZEPHYR_CURRENT_MODULE_DIR}/libipmid/sdbus-asio.cpp
@@ -43,8 +43,18 @@ if(CONFIG_OPENBMC_PHOSPHOR_HOST_IPMID)
         test.cpp
     )
 
-    zephyr_include_directories(${ZEPHYR_CURRENT_MODULE_DIR}/include)
-    zephyr_include_directories(${ZEPHYR_CURRENT_MODULE_DIR}/)
+    zephyr_export_include_directories(${ZEPHYR_CURRENT_MODULE_DIR})
+    zephyr_export_include_directories(${ZEPHYR_CURRENT_MODULE_DIR}/include)
+
+    zephyr_library_link_libraries(boost)
+    zephyr_library_link_libraries(sd-bus)
+    zephyr_library_link_libraries(sdbusplus)
+    zephyr_library_link_libraries(zbusplus)
+    zephyr_library_link_libraries(phosphor-logging)
+    zephyr_library_link_libraries(phosphor-objmgr)
+    zephyr_library_link_libraries(phosphor-user-manager)
+
+    zephyr_library_link_libraries(zephyr-test)
 
     zephyr_library_compile_definitions(
         _GNU_SOURCE
