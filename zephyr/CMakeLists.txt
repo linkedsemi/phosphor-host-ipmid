@@ -41,5 +41,6 @@ if(CONFIG_OPENBMC_PHOSPHOR_HOST_IPMID)
     zephyr_library_include_directories(${ZEPHYR_CURRENT_MODULE_DIR}/)
 
     zephyr_include_directories(${ZEPHYR_CURRENT_MODULE_DIR}/include)
+    zephyr_include_directories(${ZEPHYR_CURRENT_MODULE_DIR}/)
     # zephyr_library_compile_definitions(_GNU_SOURCE)
 endif()
