@@ -19,7 +19,9 @@
 #include "apphandler.hpp"
 #include "user_layer.hpp"
 
+#if 0
 #include <ifaddrs.h>
+#endif /* 0 */
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -933,6 +935,7 @@ int ChannelConfig::loadChannelConfig()
 
     channelData.fill(ChannelProperties{});
 
+#ifdef 0
     // Collect the list of NIC interfaces connected to the BMC. Use this
     // information to only add IPMI channels that have active NIC interfaces.
     struct ifaddrs *ifaddr = nullptr, *ifa = nullptr;
@@ -1023,6 +1026,7 @@ int ChannelConfig::loadChannelConfig()
         }
     }
     freeifaddrs(ifaddr);
+#endif /* 0 */
 
     return 0;
 }

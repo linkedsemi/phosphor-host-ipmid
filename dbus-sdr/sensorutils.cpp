@@ -215,7 +215,11 @@ bool getSensorAttributes(const double max, const double min, int16_t& mValue,
         return false;
     }
 
+#ifdef __ZEPHYR__
+    mValue = static_cast<int16_t>(round(dM));
+#else
     mValue = static_cast<int16_t>(std::round(dM));
+#endif /* __ZEPHYR__ */
 
     normalizeIntExp(mValue, rExp, dM);
 
@@ -247,7 +251,11 @@ bool getSensorAttributes(const double max, const double min, int16_t& mValue,
         return false;
     }
 
+#ifdef __ZEPHYR__
+    bValue = static_cast<int16_t>(round(dB));
+#else
     bValue = static_cast<int16_t>(std::round(dB));
+#endif /* __ZEPHYR__ */
 
     normalizeIntExp(bValue, bExp, dB);
 
@@ -277,7 +285,11 @@ uint8_t scaleIPMIValueFromDouble(const double value, const int16_t mValue,
         (std::pow(10.0, -rExp) * (value - (dB * std::pow(10.0, rExp + bExp)))) /
         dM;
 
+#ifdef __ZEPHYR__
+    auto scaledValue = static_cast<int32_t>(round(dX));
+#else
     auto scaledValue = static_cast<int32_t>(std::round(dX));
+#endif /* __ZEPHYR__ */
 
     int32_t minClamp;
     int32_t maxClamp;

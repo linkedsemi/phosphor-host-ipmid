@@ -1,8 +1,10 @@
 #include <arpa/inet.h>
 #include <dirent.h>
 #include <fcntl.h>
+#if 0
 #include <linux/i2c-dev.h>
 #include <linux/i2c.h>
+#endif /* 0 */
 #include <net/if.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
@@ -634,6 +636,7 @@ ipmi::Cc i2cWriteRead(std::string i2cBus, const uint8_t slaveAddr,
                       std::vector<uint8_t> writeData,
                       std::vector<uint8_t>& readBuf)
 {
+#if 0
     // Open the i2c device, for low-level combined data write/read
     int i2cDev = ::open(i2cBus.c_str(), O_RDWR | O_CLOEXEC);
     if (i2cDev < 0)
@@ -686,6 +689,7 @@ ipmi::Cc i2cWriteRead(std::string i2cBus, const uint8_t slaveAddr,
     }
 
     return ipmi::ccSuccess;
+#endif /* 0 */
 }
 
 } // namespace ipmi

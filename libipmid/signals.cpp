@@ -1,3 +1,6 @@
+#ifdef __ZEPHYR__
+#include <sys/time.h>
+#endif /* __ZEPHYR__ */
 #include <boost/asio/signal_set.hpp>
 #include <forward_list>
 #include <ipmid/api.hpp>

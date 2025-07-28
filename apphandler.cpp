@@ -3,8 +3,10 @@
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <limits.h>
+#if 0
 #include <linux/i2c-dev.h>
 #include <linux/i2c.h>
+#endif /* 0 */
 #include <mapper.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>

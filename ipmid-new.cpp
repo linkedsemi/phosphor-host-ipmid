@@ -17,7 +17,9 @@
 
 #include "settings.hpp"
 
+#if 0
 #include <dlfcn.h>
+#endif /* 0 */
 
 #include <algorithm>
 #include <any>
@@ -595,7 +597,9 @@ struct IpmiProvider
                           entry("PROVIDER=%s", name.c_str()));
         try
         {
+#if 0
             addr = dlopen(name.c_str(), RTLD_NOW);
+#endif /* 0 */
         }
         catch (const std::exception& e)
         {
@@ -622,12 +626,18 @@ struct IpmiProvider
     {
         if (isOpen())
         {
+#if 0
             dlclose(addr);
+#endif /* 0 */
         }
     }
     bool isOpen() const
     {
+#ifdef __ZEPHYR__
+        return true;
+#else
         return (nullptr != addr);
+#endif /* __ZEPHYR__ */
     }
 };
 
@@ -815,7 +825,11 @@ std::unique_ptr<phosphor::host::command::Manager>& ipmid_get_host_cmd_manager()
 extern void setIoContext(std::shared_ptr<boost::asio::io_context>& newIo);
 extern void setSdBus(std::shared_ptr<sdbusplus::asio::connection>& newBus);
 
+#ifdef __ZEPHYR__
+extern "C" int ipmid_main(int argc, char* argv[])
+#else
 int main(int argc, char* argv[])
+#endif /* __ZEPHYR__ */
 {
     // Connect to system bus
     auto io = std::make_shared<boost::asio::io_context>();

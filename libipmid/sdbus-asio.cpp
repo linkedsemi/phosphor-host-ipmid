@@ -1,3 +1,6 @@
+#ifdef __ZEPHYR__
+#include <sys/time.h>
+#endif /* __ZEPHYR__*/
 #include <boost/asio/io_context.hpp>
 #include <memory>
 #include <sdbusplus/asio/connection.hpp>

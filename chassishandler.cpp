@@ -3,7 +3,9 @@
 #include "chassishandler.hpp"
 
 #include <arpa/inet.h>
+#if 0
 #include <endian.h>
+#endif /* 0 */
 #include <limits.h>
 #include <mapper.h>
 #include <netinet/in.h>
