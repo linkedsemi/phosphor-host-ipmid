@@ -26,7 +26,10 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#ifndef __ZEPHYR__
 #include <boost/interprocess/sync/scoped_lock.hpp>
+#endif
+
 #include <cerrno>
 #include <exception>
 #include <filesystem>
@@ -247,9 +250,10 @@ void ChannelConfig::processChAccessPropChange(
         log<level::ERR>("Exception: ", entry("MSG=%s", e.what()));
         return;
     }
-
+#ifndef __ZEPHYR__
     boost::interprocess::scoped_lock<boost::interprocess::named_recursive_mutex>
         channelLock{*channelMutex};
+#endif
     // skip updating the values, if this property change originated from IPMI.
     if (signalFlag & (1 << chNum))
     {
@@ -301,7 +305,9 @@ ChannelConfig::~ChannelConfig()
         chPropertiesSignal.reset();
         chInterfaceAddedSignal.reset();
         chInterfaceRemovedSignal.reset();
+#ifndef __ZEPHYR__
         sigHndlrLock.unlock();
+#endif
     }
 }
 
@@ -511,8 +517,10 @@ Cc ChannelConfig::setChannelAccessData(const uint8_t chNum,
         return ccInvalidFieldRequest;
     }
 
+#ifndef __ZEPHYR__
     boost::interprocess::scoped_lock<boost::interprocess::named_recursive_mutex>
         channelLock{*channelMutex};
+#endif
 
     if (checkAndReloadVolatileData() != 0)
     {
@@ -610,8 +618,10 @@ Cc ChannelConfig::setChannelAccessPersistData(const uint8_t chNum,
         return ccInvalidFieldRequest;
     }
 
+#ifndef __ZEPHYR__
     boost::interprocess::scoped_lock<boost::interprocess::named_recursive_mutex>
         channelLock{*channelMutex};
+#endif
 
     if (checkAndReloadNVData() != 0)
     {
@@ -942,7 +952,7 @@ int ChannelConfig::loadChannelConfig()
 #endif /* 0 */
     channelData.fill(ChannelProperties{});
 
-#ifdef 0
+#if 0
     // Collect the list of NIC interfaces connected to the BMC. Use this
     // information to only add IPMI channels that have active NIC interfaces.
     struct ifaddrs *ifaddr = nullptr, *ifa = nullptr;
@@ -1040,8 +1050,10 @@ int ChannelConfig::loadChannelConfig()
 
 int ChannelConfig::readChannelVolatileData()
 {
+#ifndef __ZEPHYR__
     boost::interprocess::scoped_lock<boost::interprocess::named_recursive_mutex>
         channelLock{*channelMutex};
+#endif
 
     Json data = readJsonFile(channelVolatileDataFilename);
     if (data == nullptr)
@@ -1108,8 +1120,10 @@ int ChannelConfig::readChannelVolatileData()
 
 int ChannelConfig::readChannelPersistData()
 {
+#ifndef __ZEPHYR__
     boost::interprocess::scoped_lock<boost::interprocess::named_recursive_mutex>
         channelLock{*channelMutex};
+#endif
 
     Json data = readJsonFile(channelNvDataFilename);
     if (data == nullptr)
@@ -1175,8 +1189,10 @@ int ChannelConfig::readChannelPersistData()
 
 int ChannelConfig::writeChannelVolatileData()
 {
+#ifndef __ZEPHYR__
     boost::interprocess::scoped_lock<boost::interprocess::named_recursive_mutex>
         channelLock{*channelMutex};
+#endif
     Json outData;
 
     try
@@ -1224,8 +1240,10 @@ int ChannelConfig::writeChannelVolatileData()
 
 int ChannelConfig::writeChannelPersistData()
 {
+#ifndef __ZEPHYR__
     boost::interprocess::scoped_lock<boost::interprocess::named_recursive_mutex>
         channelLock{*channelMutex};
+#endif
     Json outData;
 
     try
@@ -1373,8 +1391,10 @@ int ChannelConfig::getDbusProperty(const std::string& service,
 
 int ChannelConfig::syncNetworkChannelConfig()
 {
+#ifndef __ZEPHYR__
     boost::interprocess::scoped_lock<boost::interprocess::named_recursive_mutex>
         channelLock{*channelMutex};
+#endif
     bool isUpdated = false;
     for (uint8_t chNum = 0; chNum < maxIpmiChannels; chNum++)
     {
@@ -1451,10 +1471,10 @@ int ChannelConfig::syncNetworkChannelConfig()
 
 void ChannelConfig::initChannelPersistData()
 {
-#if 0
+#ifndef __ZEPHYR__
     boost::interprocess::scoped_lock<boost::interprocess::named_recursive_mutex>
         channelLock{*channelMutex};
-#endif /* 0 */
+#endif
 
 #if 0
     /* Always read the channel config */

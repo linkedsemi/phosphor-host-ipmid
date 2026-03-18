@@ -51,10 +51,12 @@
 #include <utility>
 #include <vector>
 
-#ifdef __ZEPHYR__
-#include <zephyr/kernel.h>
-#include "zbusplus.h"
-#endif /* __ZEPHYR__ */
+// #ifdef __ZEPHYR__
+// #include <zephyr/kernel.h>
+// #include "zbusplus.h"
+
+// extern struct k_sem host_ipmid_ready_sem;
+// #endif /* __ZEPHYR__ */
 
 namespace fs = std::filesystem;
 
@@ -91,17 +93,33 @@ EInterfaceIndex getInterfaceIndex(void)
     return interfaceKCS;
 }
 
+#ifdef __ZEPHYR__
+__thread sd_bus* gbus;
+#endif /* __ZEPHYR__ */
 sd_bus* bus;
 sd_event* events = nullptr;
 sd_event* ipmid_get_sd_event_connection(void)
 {
     return events;
 }
+
+#ifdef __ZEPHYR__
+void ipmid_set_sd_bus_connection(sd_bus* bus)
+{
+    gbus = bus;
+}
+
+sd_bus* ipmid_get_sd_bus_connection(void)
+{
+    return gbus;
+}
+#else
 sd_bus* ipmid_get_sd_bus_connection(void)
 {
     return bus;
 }
 
+#endif /* __ZEPHYR__ */
 namespace ipmi
 {
 
@@ -347,7 +365,7 @@ void assoc_erase_if(AssocContainer& c, UnaryPredicate p)
 
 namespace
 {
-std::unordered_map<std::string, uint8_t> uniqueNameToChannelNumber;
+std::unordered_map<std::string, uint8_t> uniqueNameToChannelNumber = {{"xyz.openbmc_project.Ipmi.Channel.eth0", 1}};
 
 // sdbusplus::bus::match::rules::arg0namespace() wants the prefix
 // to match without any trailing '.'
@@ -369,11 +387,7 @@ void updateOwners(sdbusplus::asio::connection& conn, const std::string& name)
                 name.substr(std::strlen(ipmiDbusChannelMatch) + 1);
             try
             {
-#ifdef __ZEPHYR__
-                uint8_t channel = 0;
-#else
                 uint8_t channel = getChannelByName(chName);
-#endif /* __ZEPHYR__*/
                 uniqueNameToChannelNumber[nameOwner] = channel;
                 log<level::INFO>("New interface mapping",
                                  entry("INTERFACE=%s", name.c_str()),
@@ -445,11 +459,7 @@ void nameChangeHandler(sdbusplus::message_t& message)
         std::string chName = name.substr(std::strlen(ipmiDbusChannelMatch) + 1);
         try
         {
-#ifdef __ZEPHYR__
-            uint8_t channel = 0;
-#else
             uint8_t channel = getChannelByName(chName);
-#endif /* __ZEPHYR__*/
             uniqueNameToChannelNumber[newOwner] = channel;
             log<level::INFO>("New interface mapping",
                              entry("INTERFACE=%s", name.c_str()),
@@ -478,11 +488,7 @@ uint8_t channelFromMessage(sdbusplus::message_t& msg)
     // FIXME: currently internal connections are ephemeral and hard to pin down
     try
     {
-#ifdef __ZEPHYR__
-        return 0;
-#else
         return getChannelByName(intraBmcName);
-#endif
     }
     catch (const std::exception& e)
     {
@@ -495,32 +501,21 @@ auto executionEntry(boost::asio::yield_context yield, sdbusplus::message_t& m,
                     NetFn netFn, uint8_t lun, Cmd cmd, ipmi::SecureBuffer& data,
                     std::map<std::string, ipmi::Value>& options)
 {
-    printk_thread("executionEntry: netFn %#x, lun %#x, cmd %#x", netFn, lun, cmd);
+    printk("executionEntry: netFn %#x, lun %#x, cmd %#x", netFn, lun, cmd);
     const auto dbusResponse =
         [netFn, lun, cmd](Cc cc, const ipmi::SecureBuffer& data = {}) {
             constexpr uint8_t netFnResponse = 0x01;
             uint8_t retNetFn = netFn | netFnResponse;
             return std::make_tuple(retNetFn, lun, cmd, cc, data);
         };
-#ifdef __ZEPHYR__
-#if 0
     std::string sender = m.get_sender();
-#endif /* 0 */
-    Privilege privilege = Privilege::Admin;
-#else
     Privilege privilege = Privilege::None;
-#endif /* __ZEPHYR__ */
     int rqSA = 0;
     int hostIdx = 0;
     uint8_t userId = 0; // undefined user
     uint32_t sessionId = 0;
 
     // figure out what channel the request came in on
-#ifdef __ZEPHYR__
-    uint8_t channel = 0;
-    printk("[IPMI] call executeIpmiCommand: netFn %#x, lun %#x, cmd %#x\n", netFn, lun, cmd);
-#else
-#if 0
     uint8_t channel = channelFromMessage(m);
     if (channel == invalidChannel)
     {
@@ -591,8 +586,6 @@ auto executionEntry(boost::asio::yield_context yield, sdbusplus::message_t& m,
                       entry("SESSIONID=0x%X", sessionId),
                       entry("PRIVILEGE=%u", static_cast<uint8_t>(privilege)),
                       entry("RQSA=%x", rqSA));
-#endif /* 0 */
-#endif /* __ZEPHYR__ */
 
     auto ctx = std::make_shared<ipmi::Context>(getSdBus(), netFn, lun, cmd,
                                                channel, userId, sessionId,
@@ -601,13 +594,6 @@ auto executionEntry(boost::asio::yield_context yield, sdbusplus::message_t& m,
         ctx, std::forward<ipmi::SecureBuffer>(data));
     message::Response::ptr response = executeIpmiCommand(request);
 
-    printk_thread("call executeIpmiCommand return: cc %#x, resp len %u, resp data: ", response->cc, response->payload.raw.size());
-    printk("    ");
-    for (auto i : response->payload.raw)
-    {
-        printk("%#x ", i);
-    }
-    printk("\n");
     return dbusResponse(response->cc, response->payload.raw);
 }
 
@@ -880,17 +866,18 @@ static bool ipmid_init_finished = false;
 int ipmid_main()
 {
     // Connect to system bus
-    printk_thread("io_context");
+    printk("io_context");
     auto io = std::make_shared<boost::asio::io_context>();
 
-    printk_thread("sd_bus_default_system");
+    printk("sd_bus_default_system");
     sd_bus_open_system(&bus);
+    gbus = bus;
+    // printk("init_zbus_observers");
+    //	init_zbus_observers(bus, "ipmid_host");
+    // ZBUS_SET_OBSERVER(bus, ipmid_host);
 
-    sd_bus_request_name(bus, "ipmid_main", 0);
-    printk_thread("init_zbus_observers");
-	init_zbus_observers(bus, "ipmid_host");
-
-    printk_thread("setIoContext");
+    sd_bus_request_name(bus, "xyz.openbmc_project.Ipmi.Host", 0);
+    printk("setIoContext");
     setIoContext(io);
 
     // if (argc > 1 && std::string(argv[1]) == "-session")
@@ -906,7 +893,7 @@ int ipmid_main()
 
     // TODO: Hack to keep the sdEvents running.... Not sure why the sd_event
     //       queue stops running if we don't have a timer that keeps re-arming
-    printk_thread("Timer");
+    printk("Timer");
     // sdbusplus::Timer t2([]() { ; });
     // t2.start(std::chrono::microseconds(500000), true);
 
@@ -914,23 +901,23 @@ int ipmid_main()
     //       until that is done, add the sd_event wrapper to the io object
     // sdbusplus::asio::sd_event_wrapper sdEvents(*io);
 
-    printk_thread("cmdManager");
+    printk("cmdManager");
     // cmdManager = std::make_unique<phosphor::host::command::Manager>(*sdbusp);
 
-    printk_thread("loadProviders");
+    printk("loadProviders");
     // Register all command providers and filters
     loadProviders();
 
 #ifdef ALLOW_DEPRECATED_API
     // listen on deprecated signal interface for kcs/bt commands
-    printk_thread("oldIpmiInterface");
+    printk("oldIpmiInterface");
     // constexpr const char* FILTER = "type='signal',interface='org.openbmc."
     //                                "HostIpmi',member='ReceivedMessage'";
     // sdbusplus::bus::match_t oldIpmiInterface(*sdbusp, FILTER,
     //                                          handleLegacyIpmiCommand);
 #endif /* ALLOW_DEPRECATED_API */
 
-    printk_thread("nameOwnerChanged");
+    printk("nameOwnerChanged");
     // set up bus name watching to match channels with bus names
     // sdbusplus::bus::match_t nameOwnerChanged(
     //     *sdbusp,
@@ -939,10 +926,10 @@ int ipmid_main()
     //             ipmi::ipmiDbusChannelMatch),
     //     ipmi::nameChangeHandler);
 
-    printk_thread("doListNames");
+    printk("doListNames");
     ipmi::doListNames(*io, *sdbusp);
 
-    printk_thread("stopAsioRunLoop");
+    printk("stopAsioRunLoop");
     int exitCode = 0;
     // set up boost::asio signal handling
     std::function<SignalResponse(int)> stopAsioRunLoop =
@@ -954,30 +941,32 @@ int ipmid_main()
             return SignalResponse::breakExecution;
         };
 
-    printk_thread("registerSignalHandler");
+    printk("registerSignalHandler");
     // registerSignalHandler(ipmi::prioOpenBmcBase, SIGINT, stopAsioRunLoop);
     // registerSignalHandler(ipmi::prioOpenBmcBase, SIGTERM, stopAsioRunLoop);
 
-    printk_thread("request_name");
+    printk("request_name");
     // sdbusp->request_name("xyz.openbmc_project.Ipmi.Host");
 
-    printk_thread("server");
+    printk("server");
     // Add bindings for inbound IPMI requests
     auto server = sdbusplus::asio::object_server(sdbusp);
 
-    printk_thread("add_interface");
+    printk("add_interface");
     auto iface = server.add_interface("/xyz/openbmc_project/Ipmi",
                                       "xyz.openbmc_project.Ipmi.Server");
 
-    printk_thread("register_method");
+    printk("register_method");
     iface->register_method("execute", ipmi::executionEntry);
 
-    printk_thread("initialize");
+    printk("initialize");
     iface->initialize();
-    printk_thread("initialize end");
+    printk("initialize end");
 
-    printk_thread("run");
+    printk("run");
     ipmid_init_finished = true;
+    // k_sem_give(&host_ipmid_ready_sem);
+
     io->run();
 
     // // destroy all the IPMI handlers so the providers can unload safely

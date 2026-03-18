@@ -23,7 +23,9 @@
 #include <ipmid/api.hpp>
 #include <sdbusplus/bus.hpp>
 #include <variant>
-#include <user_mgr.hpp>
+#ifdef __ZEPHYR__
+// #include <user_mgr.hpp>
+#endif /* __ZEPHYR__*/
 
 namespace ipmi
 {

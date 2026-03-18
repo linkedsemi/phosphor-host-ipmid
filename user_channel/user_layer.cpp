@@ -181,9 +181,10 @@ bool ipmiUserPamAuthenticate(std::string_view userName,
                              std::string_view userPassword)
 {
 #ifdef __ZEPHYR__
-    std::string _userName(userName);
-    std::string _userPassword(userPassword);
-    return phosphor::user::UserMgr::zephyrAuthenticate(_userName, _userPassword, "ipmi");
+    // std::string _userName(userName);
+    // std::string _userPassword(userPassword);
+    // return phosphor::user::UserMgr::zephyrAuthenticate(_userName, _userPassword, "ipmi");
+    return true;
 #else
     return pamUserCheckAuthenticate(userName, userPassword);
 #endif /* __ZEPHYR__ */

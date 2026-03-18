@@ -96,9 +96,10 @@ void PasswdMgr::restrictFilesPermission(void)
 #ifdef __ZEPHYR__
 SecureString PasswdMgr::getPasswdByUserName(const std::string& userName)
 {
-    std::string passwd = phosphor::user::UserMgr::getPasswdByUserName(userName);
-    SecureString secureStrPasswd(passwd.c_str());
-    return secureStrPasswd;
+    // std::string passwd = phosphor::user::UserMgr::getPasswdByUserName(userName);
+    // SecureString secureStrPasswd(passwd.c_str());
+    // return secureStrPasswd;
+    return SecureString();
 }
 #else
 SecureString PasswdMgr::getPasswdByUserName(const std::string& userName)

@@ -360,9 +360,10 @@ void userUpdatedSignalHandler(UserAccess& usrAccess, sdbusplus::message_t& msg)
         log<level::ERR>("Invalid inputs received");
         return;
     }
-
+#ifndef __ZEPHYR__
     boost::interprocess::scoped_lock<boost::interprocess::named_recursive_mutex>
         userLock{*(usrAccess.userMutex)};
+#endif
     usrAccess.checkAndReloadUserData();
 
     if (signal == propertiesChangedSignal)
@@ -454,6 +455,7 @@ UserAccess::~UserAccess()
 
 UserAccess::UserAccess() : bus(ipmid_get_sd_bus_connection())
 {
+#ifndef __ZEPHYR__
     std::ofstream mutexCleanUpFile;
     mutexCleanUpFile.open(ipmiMutexCleanupLockFile,
                           std::ofstream::out | std::ofstream::app);
@@ -471,7 +473,7 @@ UserAccess::UserAccess() : bus(ipmid_get_sd_bus_connection())
     mutexCleanupLock.lock_sharable();
     userMutex = std::make_unique<boost::interprocess::named_recursive_mutex>(
         boost::interprocess::open_or_create, ipmiUserMutex);
-
+#endif
     cacheUserDataFile();
     getSystemPrivAndGroups();
 }
@@ -759,11 +761,11 @@ bool pamUserCheckAuthenticate(std::string_view username,
 Cc UserAccess::setSpecialUserPassword(const std::string& userName,
                                       const SecureString& userPassword)
 {
-    if (phosphor::user::UserMgr::zephyrUpdatePassword(userName, userPassword.c_str()) != ZEPHYR_PAM_SUCCESS)
-    {
-        log<level::DEBUG>("Failed to update password");
-        return ccUnspecifiedError;
-    }
+    // if (phosphor::user::UserMgr::zephyrUpdatePassword(userName, userPassword.c_str()) != ZEPHYR_PAM_SUCCESS)
+    // {
+    //     log<level::DEBUG>("Failed to update password");
+    //     return ccUnspecifiedError;
+    // }
     return ccSuccess;
 }
 #else
@@ -782,37 +784,38 @@ Cc UserAccess::setSpecialUserPassword(const std::string& userName,
 #ifdef __ZEPHYR__
 Cc UserAccess::setUserPassword(const uint8_t userId, const char* userPassword)
 {
-    std::string userName;
-    if (ipmiUserGetUserName(userId, userName) != ccSuccess)
-    {
-        log<level::DEBUG>("User Name not found",
-                          entry("USER-ID=%d", (uint8_t)userId));
-        return ccParmOutOfRange;
-    }
+    // std::string userName;
+    // if (ipmiUserGetUserName(userId, userName) != ccSuccess)
+    // {
+    //     log<level::DEBUG>("User Name not found",
+    //                       entry("USER-ID=%d", (uint8_t)userId));
+    //     return ccParmOutOfRange;
+    // }
 
-    // ipmi::SecureString passwd;
-    // passwd.assign(reinterpret_cast<const char*>(userPassword), 0,
-    //               maxIpmi20PasswordSize);
-    int retval = phosphor::user::UserMgr::zephyrUpdatePassword(userName, userPassword);
+    // // ipmi::SecureString passwd;
+    // // passwd.assign(reinterpret_cast<const char*>(userPassword), 0,
+    // //               maxIpmi20PasswordSize);
+    // int retval = phosphor::user::UserMgr::zephyrUpdatePassword(userName, userPassword);
 
-    switch (retval)
-    {
-        case ZEPHYR_PAM_SUCCESS:
-        {
-            return ccSuccess;
-        }
-        case ZEPHYR_PAM_AUTHTOK_ERR:
-        {
-            log<level::DEBUG>("Bad authentication token");
-            return ccInvalidFieldRequest;
-        }
-        default:
-        {
-            log<level::DEBUG>("Failed to update password",
-                              entry("USER-ID=%d", (uint8_t)userId));
-            return ccUnspecifiedError;
-        }
-    }
+    // switch (retval)
+    // {
+    //     case ZEPHYR_PAM_SUCCESS:
+    //     {
+    //         return ccSuccess;
+    //     }
+    //     case ZEPHYR_PAM_AUTHTOK_ERR:
+    //     {
+    //         log<level::DEBUG>("Bad authentication token");
+    //         return ccInvalidFieldRequest;
+    //     }
+    //     default:
+    //     {
+    //         log<level::DEBUG>("Failed to update password",
+    //                           entry("USER-ID=%d", (uint8_t)userId));
+    //         return ccUnspecifiedError;
+    //     }
+    // }
+    return ccSuccess;
 }
 #else
 Cc UserAccess::setUserPassword(const uint8_t userId, const char* userPassword)
@@ -858,8 +861,10 @@ Cc UserAccess::setUserEnabledState(const uint8_t userId,
     {
         return ccParmOutOfRange;
     }
+#ifndef __ZEPHYR__
     boost::interprocess::scoped_lock<boost::interprocess::named_recursive_mutex>
         userLock{*userMutex};
+#endif
     UserInfo* userInfo = getUserInfo(userId);
     std::string userName;
     userName.assign(reinterpret_cast<char*>(userInfo->userName), 0,
@@ -911,8 +916,10 @@ Cc UserAccess::setUserPayloadAccess(const uint8_t chNum,
         return ccInvalidFieldRequest;
     }
     // Check operation & payloadAccess if required.
+#ifndef __ZEPHYR__
     boost::interprocess::scoped_lock<boost::interprocess::named_recursive_mutex>
         userLock{*userMutex};
+#endif
     UserInfo* userInfo = getUserInfo(userId);
 
     if (operation == enable)
@@ -956,8 +963,10 @@ Cc UserAccess::setUserPrivilegeAccess(const uint8_t userId, const uint8_t chNum,
     {
         return ccParmOutOfRange;
     }
+#ifndef __ZEPHYR__
     boost::interprocess::scoped_lock<boost::interprocess::named_recursive_mutex>
         userLock{*userMutex};
+#endif
     UserInfo* userInfo = getUserInfo(userId);
     std::string userName;
     userName.assign(reinterpret_cast<char*>(userInfo->userName), 0,
@@ -1003,8 +1012,10 @@ Cc UserAccess::setUserPrivilegeAccess(const uint8_t userId, const uint8_t chNum,
 
 uint8_t UserAccess::getUserId(const std::string& userName)
 {
+#ifndef __ZEPHYR__
     boost::interprocess::scoped_lock<boost::interprocess::named_recursive_mutex>
         userLock{*userMutex};
+#endif
     checkAndReloadUserData();
     // user index 0 is reserved, starts with 1
     size_t usrIndex = 1;
@@ -1066,9 +1077,10 @@ Cc UserAccess::setUserName(const uint8_t userId, const std::string& userName)
     {
         return ccParmOutOfRange;
     }
-
+#ifndef __ZEPHYR__
     boost::interprocess::scoped_lock<boost::interprocess::named_recursive_mutex>
         userLock{*userMutex};
+#endif
     std::string oldUser;
     getUserName(userId, oldUser);
 
@@ -1284,8 +1296,10 @@ void UserAccess::updatePayloadAccessInUserInfo(
 
 void UserAccess::readUserData()
 {
+#ifndef __ZEPHYR__
     boost::interprocess::scoped_lock<boost::interprocess::named_recursive_mutex>
         userLock{*userMutex};
+#endif
 
     std::ifstream iUsrData(ipmiUserDataFile, std::ios::in | std::ios::binary);
     if (!iUsrData.good())
@@ -1411,9 +1425,10 @@ void UserAccess::readUserData()
 
 void UserAccess::writeUserData()
 {
+#ifndef __ZEPHYR__
     boost::interprocess::scoped_lock<boost::interprocess::named_recursive_mutex>
         userLock{*userMutex};
-
+#endif
     Json jsonUsersTbl = Json::array();
     // user index 0 is reserved, starts with 1
     for (size_t usrIndex = 1; usrIndex <= ipmiMaxUsers; ++usrIndex)
@@ -1682,8 +1697,10 @@ int UserAccess::getUserObjProperties(const DbusUserObjValue& userObjs,
 
 void UserAccess::cacheUserDataFile()
 {
+#ifndef __ZEPHYR__
     boost::interprocess::scoped_lock<boost::interprocess::named_recursive_mutex>
         userLock{*userMutex};
+#endif
     try
     {
         readUserData();
@@ -1707,6 +1724,7 @@ void UserAccess::cacheUserDataFile()
         }
         writeUserData();
     }
+#ifndef __ZEPHYR__
     // Create lock file if it does not exist
     int fd = open(ipmiUserSignalLockFile, O_CREAT | O_TRUNC | O_SYNC,
                   S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
@@ -1719,9 +1737,14 @@ void UserAccess::cacheUserDataFile()
     close(fd);
 
     sigHndlrLock = boost::interprocess::file_lock(ipmiUserSignalLockFile);
+#endif
     // Register it for single object and single process either netipmid /
     // host-ipmid
+#ifdef __ZEPHYR__
+    if (userUpdatedSignal == nullptr)
+#else
     if (userUpdatedSignal == nullptr && sigHndlrLock.try_lock())
+#endif /* __ZEPHYR__ */
     {
         log<level::DEBUG>("Registering signal handler");
         userUpdatedSignal = std::make_unique<sdbusplus::bus::match_t>(

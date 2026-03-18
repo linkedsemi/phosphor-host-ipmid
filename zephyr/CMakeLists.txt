@@ -40,21 +40,21 @@ if(CONFIG_OPENBMC_PHOSPHOR_HOST_IPMID)
         ${ZEPHYR_CURRENT_MODULE_DIR}/user_channel/user_mgmt.cpp
         ${ZEPHYR_CURRENT_MODULE_DIR}/user_channel/passwd_mgr.cpp
 
-        test.cpp
+        # test.cpp
     )
 
-    zephyr_export_include_directories(${ZEPHYR_CURRENT_MODULE_DIR})
-    zephyr_export_include_directories(${ZEPHYR_CURRENT_MODULE_DIR}/include)
+    zephyr_include_directories(${ZEPHYR_CURRENT_MODULE_DIR})
+    zephyr_include_directories(${ZEPHYR_CURRENT_MODULE_DIR}/include)
 
     zephyr_library_link_libraries(boost)
-    zephyr_library_link_libraries(sd-bus)
+    # zephyr_library_link_libraries(sd-bus)
     zephyr_library_link_libraries(sdbusplus)
-    zephyr_library_link_libraries(zbusplus)
+    # zephyr_library_link_libraries(zbusplus)
     zephyr_library_link_libraries(phosphor-logging)
     zephyr_library_link_libraries(phosphor-objmgr)
-    zephyr_library_link_libraries(phosphor-user-manager)
+    # zephyr_library_link_libraries(phosphor-user-manager)
 
-    zephyr_library_link_libraries(zephyr-test)
+    # zephyr_library_link_libraries(zephyr-test)
 
     zephyr_library_compile_definitions(
         _GNU_SOURCE

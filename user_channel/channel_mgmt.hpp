@@ -18,8 +18,11 @@
 #include "channel_layer.hpp"
 #include "ipmid/api-types.hpp"
 
+#ifndef __ZEPHYR__
 #include <boost/interprocess/sync/file_lock.hpp>
 #include <boost/interprocess/sync/named_recursive_mutex.hpp>
+#endif
+
 #include <cstdint>
 #include <ctime>
 #include <nlohmann/json.hpp>
@@ -246,15 +249,21 @@ class ChannelConfig
 
   private:
     uint32_t signalFlag = 0;
+#ifndef __ZEPHYR__
     std::unique_ptr<boost::interprocess::named_recursive_mutex> channelMutex{
         nullptr};
+    boost::interprocess::file_lock mutexCleanupLock;
+    boost::interprocess::file_lock sigHndlrLock;
+#endif
+    // std::unique_ptr<boost::interprocess::named_recursive_mutex> channelMutex{
+    //     nullptr};
     std::array<ChannelProperties, maxIpmiChannels> channelData;
     std::time_t nvFileLastUpdatedTime;
     std::time_t voltFileLastUpdatedTime;
-    boost::interprocess::file_lock mutexCleanupLock;
+    // boost::interprocess::file_lock mutexCleanupLock;
     sdbusplus::bus_t bus;
     bool signalHndlrObjectState = false;
-    boost::interprocess::file_lock sigHndlrLock;
+    // boost::interprocess::file_lock sigHndlrLock;
 
     /** @brief function to initialize persistent channel configuration
      *
