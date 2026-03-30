@@ -56,6 +56,11 @@ if(CONFIG_OPENBMC_PHOSPHOR_HOST_IPMID)
 
     # zephyr_library_link_libraries(zephyr-test)
 
+    if(NOT CONFIG_WOLFSSL_SETTINGS_FILE)
+        message(FATAL_ERROR "ERROR: CONFIG_WOLFSSL_SETTINGS_FILE no set!
+            Please set in prj.conf")
+    endif()
+
     zephyr_library_compile_definitions(
         _GNU_SOURCE
         _GLIBCXX_HAVE_ALIGNED_ALLOC

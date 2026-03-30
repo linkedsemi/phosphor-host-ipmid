@@ -152,7 +152,11 @@ constexpr auto bootOneTimeIntf = "xyz.openbmc_project.Object.Enable";
 
 constexpr auto powerRestoreIntf =
     "xyz.openbmc_project.Control.Power.RestorePolicy";
+#ifdef __ZEPHYR__
+// sdbusplus::bus_t dbus(ipmid_get_sd_bus_connection());
+#else
 sdbusplus::bus_t dbus(ipmid_get_sd_bus_connection());
+#endif
 
 namespace cache
 {
@@ -163,6 +167,9 @@ settings::Objects& getObjects()
 {
     if (objectsPtr == nullptr)
     {
+        #ifdef __ZEPHYR__
+        sdbusplus::bus_t dbus(ipmid_get_sd_bus_connection());
+        #endif
         objectsPtr = std::make_unique<settings::Objects>(
             dbus, std::vector<std::string>{bootModeIntf, bootTypeIntf,
                                            bootSourceIntf, powerRestoreIntf});
@@ -1417,7 +1424,10 @@ ipmi::RspType<> ipmiChassisControl(ipmi::Context::ptr& ctx,
 std::string getEnclosureIdentifyConnection()
 {
     // lookup enclosure_identify group owner(s) in mapper
-    auto mapperCall = chassis::internal::dbus.new_method_call(
+    #ifdef __ZEPHYR__
+    sdbusplus::bus_t dbus(ipmid_get_sd_bus_connection());
+    #endif
+    auto mapperCall = dbus.new_method_call(
         ipmi::MAPPER_BUS_NAME, ipmi::MAPPER_OBJ, ipmi::MAPPER_INTF,
         "GetObject");
 
@@ -1425,7 +1435,7 @@ std::string getEnclosureIdentifyConnection()
     static const std::vector<std::string> interfaces = {
         "xyz.openbmc_project.Led.Group"};
     mapperCall.append(interfaces);
-    auto mapperReply = chassis::internal::dbus.call(mapperCall);
+    auto mapperReply = dbus.call(mapperCall);
     if (mapperReply.is_method_error())
     {
         log<level::ERR>("Chassis Identify: Error communicating to mapper.");
@@ -1457,6 +1467,9 @@ void enclosureIdentifyLed(bool flag)
     auto msg = std::string("enclosureIdentifyLed(") +
                boost::lexical_cast<std::string>(flag) + ")";
     log<level::DEBUG>(msg.c_str());
+    #ifdef __ZEPHYR__
+    sdbusplus::bus_t dbus(ipmid_get_sd_bus_connection());
+    #endif
     auto led =
         dbus.new_method_call(connection.c_str(), identify_led_object_name,
                              "org.freedesktop.DBus.Properties", "Set");
