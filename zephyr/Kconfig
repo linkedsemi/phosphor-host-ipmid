@@ -2,4 +2,5 @@
 config OPENBMC_PHOSPHOR_HOST_IPMID
     #select OPENBMC_PHOSPHOR_USER_MANAGER
     bool "openbmc phosphor host ipmid"
+    select WOLFSSL
 
