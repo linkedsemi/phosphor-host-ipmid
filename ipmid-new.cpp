@@ -95,6 +95,11 @@ EInterfaceIndex getInterfaceIndex(void)
 
 #ifdef __ZEPHYR__
 __thread sd_bus* gbus;
+
+#include <zephyr/kernel.h>
+#include <dbus_broker.h>
+
+extern struct k_sem host_ipmid_ready_sem;
 #endif /* __ZEPHYR__ */
 sd_bus* bus;
 sd_event* events = nullptr;
@@ -870,7 +875,14 @@ int ipmid_main()
     auto io = std::make_shared<boost::asio::io_context>();
 
     printk("sd_bus_default_system");
-    sd_bus_open_system(&bus);
+    int socket_fd;
+    int rc = connect_to_dbroker(&bus, &socket_fd);
+    if (rc < 0)
+    {
+        printk("Failed to connect to dbroker: %d", rc);
+        return rc;
+    }
+    // sd_bus_open_system(&bus);
     gbus = bus;
     // printk("init_zbus_observers");
     //	init_zbus_observers(bus, "ipmid_host");
@@ -965,7 +977,7 @@ int ipmid_main()
 
     printk("run");
     ipmid_init_finished = true;
-    // k_sem_give(&host_ipmid_ready_sem);
+    k_sem_give(&host_ipmid_ready_sem);
 
     io->run();
 
