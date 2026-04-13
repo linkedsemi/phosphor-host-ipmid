@@ -875,8 +875,7 @@ int ipmid_main()
     auto io = std::make_shared<boost::asio::io_context>();
 
     printk("sd_bus_default_system");
-    int socket_fd;
-    int rc = connect_to_dbroker(&bus, &socket_fd);
+    int rc = connect_to_dbroker(&bus);
     if (rc < 0)
     {
         printk("Failed to connect to dbroker: %d", rc);
