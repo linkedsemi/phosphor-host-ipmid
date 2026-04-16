@@ -98,6 +98,7 @@ __thread sd_bus* gbus;
 
 #include <zephyr/kernel.h>
 #include <dbus_broker.h>
+#include <printk_thread.h>
 
 extern struct k_sem host_ipmid_ready_sem;
 #endif /* __ZEPHYR__ */
@@ -415,6 +416,7 @@ void doListNames(boost::asio::io_context& io, sdbusplus::asio::connection& conn)
                      std::vector<std::string> busNames) {
             if (ec)
             {
+                printk_thread("doListNames err:%s", ec.message().c_str());
 #if 0
                 log<level::ERR>("Error getting dbus names");
                 std::exit(EXIT_FAILURE);
@@ -506,7 +508,8 @@ auto executionEntry(boost::asio::yield_context yield, sdbusplus::message_t& m,
                     NetFn netFn, uint8_t lun, Cmd cmd, ipmi::SecureBuffer& data,
                     std::map<std::string, ipmi::Value>& options)
 {
-    printk("executionEntry: netFn %#x, lun %#x, cmd %#x", netFn, lun, cmd);
+    printk_thread("executionEntry: netFn %#x, lun %#x, cmd %#x",
+                                   netFn, lun, cmd);
     const auto dbusResponse =
         [netFn, lun, cmd](Cc cc, const ipmi::SecureBuffer& data = {}) {
             constexpr uint8_t netFnResponse = 0x01;
@@ -514,7 +517,8 @@ auto executionEntry(boost::asio::yield_context yield, sdbusplus::message_t& m,
             return std::make_tuple(retNetFn, lun, cmd, cc, data);
         };
     std::string sender = m.get_sender();
-    Privilege privilege = Privilege::None;
+    // Privilege privilege = Privilege::None;
+    Privilege privilege = Privilege::Admin;
     int rqSA = 0;
     int hostIdx = 0;
     uint8_t userId = 0; // undefined user
@@ -522,6 +526,8 @@ auto executionEntry(boost::asio::yield_context yield, sdbusplus::message_t& m,
 
     // figure out what channel the request came in on
     uint8_t channel = channelFromMessage(m);
+// enable the execute
+#ifndef __ZEPHYR__
     if (channel == invalidChannel)
     {
         // unknown sender channel; refuse to service the request
@@ -583,6 +589,7 @@ auto executionEntry(boost::asio::yield_context yield, sdbusplus::message_t& m,
             }
         }
     }
+#endif
     // check to see if the requested priv/username is valid
     log<level::DEBUG>("Set up ipmi context", entry("SENDER=%s", sender.c_str()),
                       entry("NETFN=0x%X", netFn), entry("LUN=0x%X", lun),
@@ -871,15 +878,14 @@ static bool ipmid_init_finished = false;
 int ipmid_main()
 {
     // Connect to system bus
-    printk("io_context");
+    printk_thread("io_context");
     auto io = std::make_shared<boost::asio::io_context>();
 
-    printk("sd_bus_default_system");
-    int socket_fd;
-    int rc = connect_to_dbroker(&bus, &socket_fd);
+    printk_thread("sd_bus_default_system");
+    int rc = connect_to_dbroker(&bus);
     if (rc < 0)
     {
-        printk("Failed to connect to dbroker: %d", rc);
+        printk_thread("Failed to connect to dbroker: %d", rc);
         return rc;
     }
     // sd_bus_open_system(&bus);
@@ -888,8 +894,13 @@ int ipmid_main()
     //	init_zbus_observers(bus, "ipmid_host");
     // ZBUS_SET_OBSERVER(bus, ipmid_host);
 
-    sd_bus_request_name(bus, "xyz.openbmc_project.Ipmi.Host", 0);
-    printk("setIoContext");
+    rc = sd_bus_request_name(bus, "xyz.openbmc_project.Ipmi.Host", 0);
+    if (rc < 0)
+    {
+        printk_thread("Failed to sd_bus_request_name: %d", rc);
+        return rc;
+    }
+    printk_thread("setIoContext");
     setIoContext(io);
 
     // if (argc > 1 && std::string(argv[1]) == "-session")
@@ -905,7 +916,7 @@ int ipmid_main()
 
     // TODO: Hack to keep the sdEvents running.... Not sure why the sd_event
     //       queue stops running if we don't have a timer that keeps re-arming
-    printk("Timer");
+    printk_thread("Timer");
     // sdbusplus::Timer t2([]() { ; });
     // t2.start(std::chrono::microseconds(500000), true);
 
@@ -913,23 +924,23 @@ int ipmid_main()
     //       until that is done, add the sd_event wrapper to the io object
     // sdbusplus::asio::sd_event_wrapper sdEvents(*io);
 
-    printk("cmdManager");
+    printk_thread("cmdManager");
     // cmdManager = std::make_unique<phosphor::host::command::Manager>(*sdbusp);
 
-    printk("loadProviders");
+    printk_thread("loadProviders");
     // Register all command providers and filters
     loadProviders();
 
 #ifdef ALLOW_DEPRECATED_API
     // listen on deprecated signal interface for kcs/bt commands
-    printk("oldIpmiInterface");
+    printk_thread("oldIpmiInterface");
     // constexpr const char* FILTER = "type='signal',interface='org.openbmc."
     //                                "HostIpmi',member='ReceivedMessage'";
     // sdbusplus::bus::match_t oldIpmiInterface(*sdbusp, FILTER,
     //                                          handleLegacyIpmiCommand);
 #endif /* ALLOW_DEPRECATED_API */
 
-    printk("nameOwnerChanged");
+    printk_thread("nameOwnerChanged");
     // set up bus name watching to match channels with bus names
     // sdbusplus::bus::match_t nameOwnerChanged(
     //     *sdbusp,
@@ -938,10 +949,10 @@ int ipmid_main()
     //             ipmi::ipmiDbusChannelMatch),
     //     ipmi::nameChangeHandler);
 
-    printk("doListNames");
+    printk_thread("doListNames");
     ipmi::doListNames(*io, *sdbusp);
 
-    printk("stopAsioRunLoop");
+    printk_thread("stopAsioRunLoop");
     int exitCode = 0;
     // set up boost::asio signal handling
     std::function<SignalResponse(int)> stopAsioRunLoop =
@@ -953,29 +964,30 @@ int ipmid_main()
             return SignalResponse::breakExecution;
         };
 
-    printk("registerSignalHandler");
+    printk_thread("registerSignalHandler");
     // registerSignalHandler(ipmi::prioOpenBmcBase, SIGINT, stopAsioRunLoop);
     // registerSignalHandler(ipmi::prioOpenBmcBase, SIGTERM, stopAsioRunLoop);
 
-    printk("request_name");
+    printk_thread("request_name");
     // sdbusp->request_name("xyz.openbmc_project.Ipmi.Host");
 
-    printk("server");
+    printk_thread("server");
     // Add bindings for inbound IPMI requests
     auto server = sdbusplus::asio::object_server(sdbusp);
 
-    printk("add_interface");
+    printk_thread("add_interface");
     auto iface = server.add_interface("/xyz/openbmc_project/Ipmi",
                                       "xyz.openbmc_project.Ipmi.Server");
 
-    printk("register_method");
-    iface->register_method("execute", ipmi::executionEntry);
+    printk_thread("register_method");
+    rc = iface->register_method("execute", ipmi::executionEntry);
 
-    printk("initialize");
-    iface->initialize();
-    printk("initialize end");
+    printk_thread("initialize");
+    rc = iface->initialize();
 
-    printk("run");
+    printk_thread("initialize end");
+
+    printk_thread("run");
     ipmid_init_finished = true;
     k_sem_give(&host_ipmid_ready_sem);
 

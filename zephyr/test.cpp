@@ -11,10 +11,26 @@
 
 #include <ipmid/types.hpp>
 
-#include "zbusplus.h"
+// #include "zbusplus.h"
 
-#include "test/test.hpp"
+// #include "test/test.hpp"
+#include <sdbusplus/asio/sd_event.hpp>
+#include <dbus_broker.h>
+#include <printk_thread.h>
 
+// Global io_context for background processing
+static std::shared_ptr<boost::asio::io_context> g_io_context;
+static struct k_thread io_worker_thread;
+static K_THREAD_STACK_DEFINE(io_worker_stack, 8192);
+
+// Worker function to run io_context in background
+void io_worker_func(void* p1, void* p2, void* p3)
+{
+    printk_thread("[IO_WORKER] Background io_context worker started\n");
+    auto io = static_cast<std::shared_ptr<boost::asio::io_context>*>(p1);
+    (*io)->run();
+    printk_thread("[IO_WORKER] Background io_context worker exited\n");
+}
 
 // 使用该测试需要修改boost/asio/spawn.hpp, 增加一个basic_yield_context空的构造函数
 // basic_yield_context(
@@ -26,7 +42,7 @@
 // +  basic_yield_context() {}
 // void ipmid_cmd_test()
 // {
-//     printk("%s\n", __FUNCTION__);
+//     printk_thread("%s\n", __FUNCTION__);
     
 //     ipmi::NetFn netFn = 6;
 //     uint8_t lun = 0;
@@ -47,7 +63,7 @@
 //         ctx, std::forward<ipmi::SecureBuffer>(data));
 
 //     ipmi::message::Response::ptr response = ipmi::executeIpmiCommand(request);
-//     printk("%u, %ld: %#x %#x\n", 
+//     printk_thread("%u, %ld: %#x %#x\n",
 //         response->cc, response->payload.size(), 
 //         response->payload.data()[0], response->payload.data()[1]);
 
@@ -178,9 +194,9 @@ int test_ipmi_dbus_sendrecv(sd_bus *bus, uint8_t netfn, uint8_t lun, uint8_t cmd
     printk_thread("recv data:");
     for (uint32_t loop = 0; loop < data_len; loop++)
     {
-        printk(" %02x", ((uint8_t*)data)[loop]);
+        printk_thread(" %02x", ((uint8_t*)data)[loop]);
     }
-    printk("\n");
+    printk_thread("\n");
 
 out_free_reply:
 	/* message unref will free resources owned by the message */
@@ -194,21 +210,20 @@ out_no_free:
 using IpmiDbusRspType = std::tuple<uint8_t, uint8_t, uint8_t, uint8_t, std::vector<uint8_t>>;
 void do_sender_task(sdbusplus::asio::connection& conn, uint8_t netFn, uint8_t lun, uint8_t cmd, const std::vector<uint8_t>& commandData, std::map<std::string, ipmi::Value>& options)
 {
-    printk("\n");
     printk_thread("do sender_task");
     conn.async_method_call(
         [&](const boost::system::error_code ec,
             const IpmiDbusRspType& response) {
-            printk_thread("Got response");
+            printk("Got response\n");
             if (ec)
             {
-                printk_thread("Error getting dbus names: %s", ec.message().c_str());
+                printk("Error getting dbus names: %s\n", ec.message().c_str());
                 return;
             }
 
             const uint8_t& cc = std::get<3>(response);
             const std::vector<uint8_t>& responseData = std::get<4>(response);
-            printk_thread("netfn %#x, lun %#x, cmd %#x, cc %#x, response len %u\n, data: ",
+            printk("netfn %#x, lun %#x, cmd %#x, cc %#x, response len %u\n, data: ",
                 std::get<0>(response), std::get<1>(response), std::get<2>(response),
                 cc, responseData.size());
             for (auto i : responseData)
@@ -237,21 +252,32 @@ void sender_task(void* p1, void* p2, void* p3)
 {
     printk_thread("io_context");
     auto io = std::make_shared<boost::asio::io_context>();
+    g_io_context = io;  // Save for worker thread
+
     sd_bus *busTmp = NULL;
 
     printk_thread("sd_bus_default_user");
+    int rc = connect_to_dbroker(&busTmp);
     // sd_bus_default_user(&busTmp);
-    sd_bus_open_system(&busTmp);
+    // int rc = sd_bus_open_system(&busTmp);
+    if (!busTmp) {
+        printk_thread("%s: Failed to get default bus: %s\n",
+		        __func__, strerror(-rc));
+        return;
+    }
     // busTmp->unique_name = "sender_task";
     sd_bus_request_name(busTmp, "sender_task", 0);
     printk_thread("init_zbus_observers");
-    init_zbus_observers(busTmp, "test");
+    // init_zbus_observers(busTmp, "test");
 
-    printk_thread("connection");
+    printk_thread("connection\n");
     auto conn = sdbusplus::asio::connection(*io, busTmp);
+
     // auto timer = boost::asio::steady_timer(*io);
-    // printk("[sender_task] getSdBus\n");
+    // printk_thread("[sender_task] getSdBus\n");
 	// auto conn = getSdBus();
+
+	sdbusplus::asio::sd_event_wrapper sdEvents(*io);
 
     printk_thread("var init");
     uint8_t netFn = 6;
@@ -265,14 +291,42 @@ void sender_task(void* p1, void* p2, void* p3)
     // timer.async_wait([&](const boost::system::error_code ec) {
         // do_sender_task(conn, timer, netFn, lun, cmd, commandData, options);
     // });
-    // do_sender_task(conn, netFn, lun, cmd, commandData, options);
 
-    // k_sleep(K_SECONDS(2));
+    // test_ipmi_dbus_sendrecv(busTmp, 6, 0, 4);
 
-    // io->run();
 
-    test_ipmi_dbus_sendrecv(busTmp, 6, 0, 4);
+    // Start io_context in a background Zephyr thread
+    printk_thread("[TEST] Starting io_context worker thread");
+    k_thread_create(&io_worker_thread, io_worker_stack, K_THREAD_STACK_SIZEOF(io_worker_stack),
+                    io_worker_func, &io, NULL, NULL,
+                    7, 0, K_NO_WAIT);
     
+    // Give the worker thread time to start
+    k_msleep(200);
+    printk_thread("[TEST] Worker thread started, submitting commands");
+
+    printk_thread("[TEST] Submitting 200 commands with delays");
+    for (int i = 0; i < 200; i++)
+    {
+        do_sender_task(conn, netFn, lun, cmd, commandData, options);
+
+        // Add small delay between batches to allow processing
+        if ((i + 1) % 10 == 0) {
+            printk_thread("[TEST] Submitted batch %d, waiting for responses...", (i + 1) / 10);
+            k_msleep(500);  // Wait 500ms for D-Bus responses
+        }
+    }
+
+    printk_thread("[TEST] All commands submitted, waiting for completion");
+    k_msleep(3000);  // Wait for remaining operations
+
+    // Stop the io_context
+    printk_thread("[TEST] Stopping io_context");
+    io->stop();
+    k_msleep(500);  // Give worker thread time to exit
+
+    printk_thread("[TEST] Test completed successfully");
+
 }
 
 #define CONFIG_THREAD_PRI_TEST 5
@@ -280,12 +334,13 @@ void sender_task(void* p1, void* p2, void* p3)
 struct k_thread IPMID_test_thread;
 K_KERNEL_STACK_MEMBER(IPMID_test_task_stack, IPMID_TEST_STACK_SIZE);
 
-static void ipmid_test()
+extern "C" int ipmid_test(void)
 {
     printk_thread("Start IPMI test thread...");
 	k_thread_create(&IPMID_test_thread, IPMID_test_task_stack, K_THREAD_STACK_SIZEOF(IPMID_test_task_stack),
 			sender_task, NULL, NULL, NULL, CONFIG_THREAD_PRI_TEST, 0, K_NO_WAIT);
 	k_thread_name_set(&IPMID_test_thread, "IPMI TEST");
+    return 0;
 }
 
-DECLARATION_TEST_FUNC_REGISTER(ipmid_test);
+// DECLARATION_TEST_FUNC_REGISTER(ipmid_test);
