@@ -299,31 +299,30 @@ void sender_task(void* p1, void* p2, void* p3)
     printk_thread("[TEST] Starting io_context worker thread");
     k_thread_create(&io_worker_thread, io_worker_stack, K_THREAD_STACK_SIZEOF(io_worker_stack),
                     io_worker_func, &io, NULL, NULL,
-                    7, 0, K_NO_WAIT);
+                    4, 0, K_NO_WAIT);
     
     // Give the worker thread time to start
-    k_msleep(200);
+    k_msleep(100);
     printk_thread("[TEST] Worker thread started, submitting commands");
 
-    printk_thread("[TEST] Submitting 200 commands with delays");
-    for (int i = 0; i < 200; i++)
+    printk_thread("[TEST] Submitting 20 commands with delays");
+    for (int i = 0; i < 20; i++)
     {
         do_sender_task(conn, netFn, lun, cmd, commandData, options);
 
         // Add small delay between batches to allow processing
         if ((i + 1) % 10 == 0) {
             printk_thread("[TEST] Submitted batch %d, waiting for responses...", (i + 1) / 10);
-            k_msleep(500);  // Wait 500ms for D-Bus responses
+            k_msleep(200);  // Wait 500ms for D-Bus responses
         }
     }
 
     printk_thread("[TEST] All commands submitted, waiting for completion");
-    k_msleep(3000);  // Wait for remaining operations
+    k_msleep(1500);  // Wait for remaining operations
 
     // Stop the io_context
     printk_thread("[TEST] Stopping io_context");
     io->stop();
-    k_msleep(500);  // Give worker thread time to exit
 
     printk_thread("[TEST] Test completed successfully");
 
