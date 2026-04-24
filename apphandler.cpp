@@ -586,7 +586,37 @@ int convertVersion(std::string s, Revision& rev)
 
     return -1;
 }
+#if defined(CONFIG_TEST_AUTH)
+ipmi::RspType<uint8_t,  // Device ID
+              uint8_t,  // Device Revision
+              uint8_t,  // Firmware Revision Major
+              uint8_t,  // Firmware Revision minor
+              uint8_t,  // IPMI version
+              uint8_t,  // Additional device support
+              uint24_t, // MFG ID
+              uint16_t, // Product ID
+              uint32_t  // AUX info
+              >
+ipmiAppGetDeviceId([[maybe_unused]] ipmi::Context::ptr ctx)
+{
+    // ====================================================================
+    // [DEBUG ONLY]
+    // ====================================================================
 
+    uint8_t devId          = 0x00;      // Device ID: 随意填，通常是 0x00 或 0x20
+    uint8_t revision       = 0x81;      // Device Revision: Bit 7 设为 1 表示支持设备 SDR，低 4 位是版本号
+    uint8_t fwMajor        = 0x01;      // Firmware Major: 固件大版本 1。Bit 7 为 0 表示正常运行 (Normal Operation)
+    uint8_t fwMinor        = 0x00;      // Firmware Minor: 固件小版本 0
+    uint8_t ipmiVer        = 0x02;      // IPMI Version: 必须是 2 (代表 IPMI v2.0)
+    uint8_t addnDevSupport = 0xBF;      // Additional Support: 0xBF 表示设备支持机箱控制、FRU、SEL、SDR、传感器等常用功能
+    uint24_t manufId       = 0x002B79;  // Manufacturer ID: 0x2B79 是 OpenBMC 的官方厂商 ID
+    uint16_t prodId        = 0x0000;    // Product ID: 产品 ID，随意
+    uint32_t aux           = 0x00000000;// Aux Info: 附加信息，补 0 即可
+
+    return ipmi::responseSuccess(devId, revision, fwMajor, fwMinor, ipmiVer,
+                                 addnDevSupport, manufId, prodId, aux);
+}
+#else
 /* @brief: Implement the Get Device ID IPMI command per the IPMI spec
  *  @param[in] ctx - shared_ptr to an IPMI context struct
  *
@@ -724,7 +754,7 @@ ipmi::RspType<uint8_t,  // Device ID
         devId.id, devId.revision, devId.fw[0], devId.fw[1], devId.ipmiVer,
         devId.addnDevSupport, devId.manufId, devId.prodId, devId.aux);
 }
-
+#endif
 auto ipmiAppGetSelfTestResults() -> ipmi::RspType<uint8_t, uint8_t>
 {
     // Byte 2:
