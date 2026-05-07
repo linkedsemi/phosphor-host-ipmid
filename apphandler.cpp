@@ -656,7 +656,7 @@ ipmi::RspType<uint8_t,  // Device ID
     } devId;
     static bool dev_id_initialized = false;
     static bool defaultActivationSetting = true;
-    const char* filename = "/usr/share/ipmi-providers/dev_id.json";
+    const char* filename = "/SD2:" "/usr/share/ipmi-providers/dev_id.json";
     constexpr auto ipmiDevIdStateShift = 7;
     constexpr auto ipmiDevIdFw1Mask = ~(1 << ipmiDevIdStateShift);
 

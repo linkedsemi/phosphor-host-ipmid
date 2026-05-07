@@ -19,9 +19,7 @@
 #include "apphandler.hpp"
 #include "user_layer.hpp"
 
-#if 0
 #include <ifaddrs.h>
-#endif /* 0 */
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -44,13 +42,13 @@ namespace ipmi
 
 using namespace phosphor::logging;
 
-static constexpr const char* channelAccessDefaultFilename =
+static constexpr const char* channelAccessDefaultFilename ="/SD2:"
     "/usr/share/ipmi-providers/channel_access.json";
-static constexpr const char* channelConfigDefaultFilename =
+static constexpr const char* channelConfigDefaultFilename ="/SD2:"
     "/usr/share/ipmi-providers/channel_config.json";
-static constexpr const char* channelNvDataFilename =
+static constexpr const char* channelNvDataFilename ="/SD2:"
     "/var/lib/ipmi/channel_access_nv.json";
-static constexpr const char* channelVolatileDataFilename =
+static constexpr const char* channelVolatileDataFilename ="/SD2:"
     "/run/ipmi/channel_access_volatile.json";
 
 // TODO: Get the service name dynamically..
@@ -313,7 +311,6 @@ ChannelConfig::~ChannelConfig()
 
 ChannelConfig::ChannelConfig() : bus(ipmid_get_sd_bus_connection())
 {
-    printk("%s\n", __FUNCTION__);
 #if 0
     std::ofstream mutexCleanUpFile;
     mutexCleanUpFile.open(ipmiChMutexCleanupLockFile,
@@ -345,11 +342,14 @@ ChannelConfig::ChannelConfig() : bus(ipmid_get_sd_bus_connection())
 
     initChannelPersistData();
 
-#if 0
+#ifdef __ZEPHYR__
+    if (chPropertiesSignal == nullptr)
+#else
     sigHndlrLock = boost::interprocess::file_lock(channelNvDataFilename);
     // Register it for single object and single process either netipmid /
     // host-ipmid
     if (chPropertiesSignal == nullptr && sigHndlrLock.try_lock())
+#endif /* __ZEPHYR__ */
     {
         log<level::DEBUG>("Registering channel signal handler.");
         chPropertiesSignal = std::make_unique<sdbusplus::bus::match_t>(
@@ -386,7 +386,6 @@ ChannelConfig::ChannelConfig() : bus(ipmid_get_sd_bus_connection())
                     0, std::string(networkIntfObjectBasePath) + "/"),
             [&](sdbusplus::message_t&) { initChannelPersistData(); });
     }
-#endif /* 0 */
 }
 
 bool ChannelConfig::isValidChannel(const uint8_t chNum)
@@ -941,7 +940,7 @@ int ChannelConfig::loadChannelConfig()
 #if 0
     boost::interprocess::scoped_lock<boost::interprocess::named_recursive_mutex>
         channelLock{*channelMutex};
-
+#endif /* 0 */
     Json data = readJsonFile(channelConfigDefaultFilename);
     if (data.empty())
     {
@@ -949,10 +948,8 @@ int ChannelConfig::loadChannelConfig()
         return -EIO;
     }
 
-#endif /* 0 */
     channelData.fill(ChannelProperties{});
 
-#if 0
     // Collect the list of NIC interfaces connected to the BMC. Use this
     // information to only add IPMI channels that have active NIC interfaces.
     struct ifaddrs *ifaddr = nullptr, *ifa = nullptr;
@@ -1043,7 +1040,6 @@ int ChannelConfig::loadChannelConfig()
         }
     }
     freeifaddrs(ifaddr);
-#endif /* 0 */
 
     return 0;
 }
@@ -1476,17 +1472,14 @@ void ChannelConfig::initChannelPersistData()
         channelLock{*channelMutex};
 #endif
 
-#if 0
     /* Always read the channel config */
     if (loadChannelConfig() != 0)
     {
         log<level::ERR>("Failed to read channel config file");
         throw std::ios_base::failure("Failed to load channel configuration");
     }
-#endif /* 0 */
 
     /* Populate the channel persist data */
-#if 0
     if (readChannelPersistData() != 0)
     {
         // Copy default NV data to RW location
@@ -1531,7 +1524,6 @@ void ChannelConfig::initChannelPersistData()
     }
 
     log<level::DEBUG>("Successfully completed channel data initialization.");
-#endif /* 0 */
     return;
 }
 
