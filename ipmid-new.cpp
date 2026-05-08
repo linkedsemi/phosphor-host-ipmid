@@ -371,7 +371,7 @@ void assoc_erase_if(AssocContainer& c, UnaryPredicate p)
 
 namespace
 {
-std::unordered_map<std::string, uint8_t> uniqueNameToChannelNumber = {{"xyz.openbmc_project.Ipmi.Channel.eth0", 1}};
+std::unordered_map<std::string, uint8_t> uniqueNameToChannelNumber;
 
 // sdbusplus::bus::match::rules::arg0namespace() wants the prefix
 // to match without any trailing '.'
@@ -517,8 +517,7 @@ auto executionEntry(boost::asio::yield_context yield, sdbusplus::message_t& m,
             return std::make_tuple(retNetFn, lun, cmd, cc, data);
         };
     std::string sender = m.get_sender();
-    // Privilege privilege = Privilege::None;
-    Privilege privilege = Privilege::Admin;
+    Privilege privilege = Privilege::None;
     int rqSA = 0;
     int hostIdx = 0;
     uint8_t userId = 0; // undefined user
@@ -526,8 +525,6 @@ auto executionEntry(boost::asio::yield_context yield, sdbusplus::message_t& m,
 
     // figure out what channel the request came in on
     uint8_t channel = channelFromMessage(m);
-// enable the execute
-#ifndef __ZEPHYR__
     if (channel == invalidChannel)
     {
         // unknown sender channel; refuse to service the request
@@ -536,7 +533,6 @@ auto executionEntry(boost::asio::yield_context yield, sdbusplus::message_t& m,
                         entry("NETFN=0x%X", netFn), entry("CMD=0x%X", cmd));
         return dbusResponse(ipmi::ccDestinationUnavailable);
     }
-
     // session-based channels are required to provide userId, privilege and
     // sessionId
     if (getChannelSessionSupport(channel) != EChannelSessSupported::none)
@@ -589,7 +585,6 @@ auto executionEntry(boost::asio::yield_context yield, sdbusplus::message_t& m,
             }
         }
     }
-#endif
     // check to see if the requested priv/username is valid
     log<level::DEBUG>("Set up ipmi context", entry("SENDER=%s", sender.c_str()),
                       entry("NETFN=0x%X", netFn), entry("LUN=0x%X", lun),
@@ -873,7 +868,6 @@ extern void setIoContext(std::shared_ptr<boost::asio::io_context>& newIo);
 extern void setSdBus(std::shared_ptr<sdbusplus::asio::connection>& newBus);
 
 #ifdef __ZEPHYR__
-static bool ipmid_init_finished = false;
 
 int ipmid_main()
 {
@@ -922,10 +916,10 @@ int ipmid_main()
 
     // TODO: Remove all vestiges of sd_event from phosphor-host-ipmid
     //       until that is done, add the sd_event wrapper to the io object
-    // sdbusplus::asio::sd_event_wrapper sdEvents(*io);
+    sdbusplus::asio::sd_event_wrapper sdEvents(*io);
 
     printk_thread("cmdManager");
-    // cmdManager = std::make_unique<phosphor::host::command::Manager>(*sdbusp);
+    cmdManager = std::make_unique<phosphor::host::command::Manager>(*sdbusp);
 
     printk_thread("loadProviders");
     // Register all command providers and filters
@@ -942,12 +936,12 @@ int ipmid_main()
 
     printk_thread("nameOwnerChanged");
     // set up bus name watching to match channels with bus names
-    // sdbusplus::bus::match_t nameOwnerChanged(
-    //     *sdbusp,
-    //     sdbusplus::bus::match::rules::nameOwnerChanged() +
-    //         sdbusplus::bus::match::rules::arg0namespace(
-    //             ipmi::ipmiDbusChannelMatch),
-    //     ipmi::nameChangeHandler);
+    sdbusplus::bus::match_t nameOwnerChanged(
+        *sdbusp,
+        sdbusplus::bus::match::rules::nameOwnerChanged() +
+            sdbusplus::bus::match::rules::arg0namespace(
+                ipmi::ipmiDbusChannelMatch),
+        ipmi::nameChangeHandler);
 
     printk_thread("doListNames");
     ipmi::doListNames(*io, *sdbusp);
@@ -988,7 +982,6 @@ int ipmid_main()
     printk_thread("initialize end");
 
     printk_thread("run");
-    ipmid_init_finished = true;
     k_sem_give(&host_ipmid_ready_sem);
 
     io->run();
