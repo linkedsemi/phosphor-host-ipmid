@@ -24,10 +24,10 @@
 namespace ipmi
 {
 static const std::string csPrivDefaultFileName =
-    "/usr/share/ipmi-providers/cs_privilege_levels.json";
+    "/SD2:/usr/share/ipmi-providers/cs_privilege_levels.json";
 
 static const std::string csPrivFileName =
-    "/var/lib/ipmi/cs_privilege_levels.json";
+    "/SD2:/var/lib/ipmi/cs_privilege_levels.json";
 
 static const size_t maxCSRecords = 16;
 
