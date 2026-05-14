@@ -1581,11 +1581,7 @@ void UserAccess::deleteUserIndex(const size_t& usrIdx)
 
 void UserAccess::checkAndReloadUserData()
 {
-#ifdef __ZEPHYR__
-    timespec updateTime = getUpdatedFileTime();
-#else
     std::timespec updateTime = getUpdatedFileTime();
-#endif /* __ZEPHYR__ */
     if ((updateTime.tv_sec != fileLastUpdatedTime.tv_sec ||
          updateTime.tv_nsec != fileLastUpdatedTime.tv_nsec) ||
         (updateTime.tv_sec == 0 && updateTime.tv_nsec == 0))
@@ -1640,21 +1636,13 @@ void UserAccess::getSystemPrivAndGroups()
     return;
 }
 
-#ifdef __ZEPHYR__
-timespec UserAccess::getUpdatedFileTime()
-#else
 std::timespec UserAccess::getUpdatedFileTime()
-#endif /* __ZEPHYR__ */
 {
     struct stat fileStat;
     if (stat(ipmiUserDataFile, &fileStat) != 0)
     {
         log<level::DEBUG>("Error in getting last updated time stamp");
-#ifdef __ZEPHYR__
-        return timespec{0, 0};
-#else
         return std::timespec{0, 0};
-#endif /* __ZEPHYR__ */
     }
     return fileStat.st_mtim;
 }

@@ -22,13 +22,8 @@
  * @return true if session id and session handle are retrived else returns
  * false.
  */
-#ifdef __ZEPHYR__
-static bool parseCloseSessionInputPayload(const std::string& objectPath,
+inline bool parseCloseSessionInputPayload(const std::string& objectPath,
                                    uint32_t& sessionId, uint8_t& sessionHandle)
-#else
-bool parseCloseSessionInputPayload(const std::string& objectPath,
-                                   uint32_t& sessionId, uint8_t& sessionHandle)
-#endif /* __ZEPHYR__ */
 {
     if (objectPath.empty())
     {
@@ -78,15 +73,9 @@ bool parseCloseSessionInputPayload(const std::string& objectPath,
  *
  * @return true if the object is matched else return false
  **/
-#ifdef __ZEPHYR__
-static bool isSessionObjectMatched(const std::string objectPath,
+inline bool isSessionObjectMatched(const std::string objectPath,
                             const uint32_t reqSessionId,
                             const uint8_t reqSessionHandle)
-#else
-bool isSessionObjectMatched(const std::string objectPath,
-                            const uint32_t reqSessionId,
-                            const uint8_t reqSessionHandle)
-#endif /* __ZEPHYR__ */
 {
     uint32_t sessionId = 0;
     uint8_t sessionHandle = 0;
