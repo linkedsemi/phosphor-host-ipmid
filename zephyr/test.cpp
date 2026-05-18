@@ -17,6 +17,7 @@
 #include <sdbusplus/asio/sd_event.hpp>
 #include <dbus_broker.h>
 #include <printk_thread.h>
+#include <task_def.hpp>
 
 // Global io_context for background processing
 static std::shared_ptr<boost::asio::io_context> g_io_context;
@@ -330,15 +331,20 @@ void sender_task(void* p1, void* p2, void* p3)
 
 #define CONFIG_THREAD_PRI_TEST 5
 #define IPMID_TEST_STACK_SIZE (32 * 1024)
-struct k_thread IPMID_test_thread;
-K_KERNEL_STACK_MEMBER(IPMID_test_task_stack, IPMID_TEST_STACK_SIZE);
+static pthread_t IPMID_test_thread;
+
+/* sender_task handler wrapper for CREATE_TASK_WITH_PTHREAD macro */
+static void *sender_task_handler(void *arg)
+{
+    (void)arg;
+    sender_task(NULL, NULL, NULL);
+    return NULL;
+}
 
 extern "C" int ipmid_test(void)
 {
     printk_thread("Start IPMI test thread...");
-	k_thread_create(&IPMID_test_thread, IPMID_test_task_stack, K_THREAD_STACK_SIZEOF(IPMID_test_task_stack),
-			sender_task, NULL, NULL, NULL, CONFIG_THREAD_PRI_TEST, 0, K_NO_WAIT);
-	k_thread_name_set(&IPMID_test_thread, "IPMI TEST");
+    CREATE_TASK_WITH_PTHREAD(&IPMID_test_thread, sender_task, IPMID_TEST_STACK_SIZE);
     return 0;
 }
 
