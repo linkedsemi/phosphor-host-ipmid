@@ -43,8 +43,13 @@ if(CONFIG_OPENBMC_PHOSPHOR_HOST_IPMID)
         test.cpp
     )
 
-    zephyr_include_directories(${ZEPHYR_CURRENT_MODULE_DIR})
-    zephyr_include_directories(${ZEPHYR_CURRENT_MODULE_DIR}/include)
+    zephyr_library_include_directories(
+        ${ZEPHYR_CURRENT_MODULE_DIR}
+        ${ZEPHYR_CURRENT_MODULE_DIR}/include
+        )
+
+    zephyr_export_include_directories(${ZEPHYR_CURRENT_MODULE_DIR})
+    zephyr_export_include_directories(${ZEPHYR_CURRENT_MODULE_DIR}/include)
 
     zephyr_library_link_libraries(boost)
     # zephyr_library_link_libraries(sd-bus)
