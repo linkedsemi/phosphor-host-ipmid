@@ -75,4 +75,18 @@ if(CONFIG_OPENBMC_PHOSPHOR_HOST_IPMID)
         RODATA
         ipmi_netfn_register.ld
     )
+
+    if(EXISTS "${ZEPHYR_MK_ROFS_MODULE_DIR}")
+        #install /usr/share/ipmi-providers/
+        include(${ZEPHYR_MK_ROFS_MODULE_DIR}/zephyr/utils.cmake)
+        file(GLOB FILES ${ZEPHYR_CURRENT_MODULE_DIR}/phosphor-ipmi-config/*.json)
+        # configure/后跟目标配置文件在文件系统中的绝对路径, 即usr/share/crashdump/input为配置文件在zephyr文件系统中的路径
+        set(dest_file ${CMAKE_BINARY_DIR}/configure_file/usr/share/ipmi-providers/)
+        # install_config_file的具体使用方法请参考mk-rofs中utils.cmake
+        install_config_file(${FILES} DESTINATION ${dest_file})
+
+        # 让 CMake 监听 JSON 文件变化（解决 ninja no work to do）
+        set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${FILES})
+    endif()
+
 endif()
