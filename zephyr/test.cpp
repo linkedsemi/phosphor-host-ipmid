@@ -341,7 +341,7 @@ static void *sender_task_handler(void *arg)
     return NULL;
 }
 
-extern "C" int ipmid_test(void)
+int ipmid_test(void)
 {
     printk_thread("Start IPMI test thread...");
     CREATE_TASK_WITH_PTHREAD(&IPMID_test_thread, sender_task, IPMID_TEST_STACK_SIZE);
