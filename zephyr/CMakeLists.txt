@@ -87,6 +87,10 @@ if(CONFIG_OPENBMC_PHOSPHOR_HOST_IPMID)
 
         # 让 CMake 监听 JSON 文件变化（解决 ninja no work to do）
         set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${FILES})
+    else()
+        # message(WARNING "mk-rofs module directory not found: ${ZEPHYR_MK_ROFS_MODULE_DIR}, skip ipmi json config install")
+
+        message(FATAL_ERROR "Required mk-rofs module missing at ${ZEPHYR_MK_ROFS_MODULE_DIR}, build abort!")
     endif()
 
 endif()
