@@ -74,7 +74,7 @@ static constexpr const char* ipmiMutexCleanupLockFile =
     "/var/lib/ipmi/ipmi_usr_mutex_cleanup";
 static constexpr const char* ipmiUserSignalLockFile =
     "/var/lib/ipmi/ipmi_usr_signal_mutex";
-static constexpr const char* ipmiUserDataFile = "/SD2:/var/lib/ipmi/ipmi_user.json";
+static constexpr const char* ipmiUserDataFile = CONFIG_FS_ROOT_OVERLAY "/var/lib/ipmi/ipmi_user.json";
 static constexpr const char* ipmiGrpName = "ipmi";
 static constexpr size_t privNoAccess = 0xF;
 static constexpr size_t privMask = 0xF;

@@ -42,13 +42,13 @@ namespace ipmi
 
 using namespace phosphor::logging;
 
-static constexpr const char* channelAccessDefaultFilename ="/SD2:"
+static constexpr const char* channelAccessDefaultFilename = CONFIG_FS_ROOT_OVERLAY
     "/usr/share/ipmi-providers/channel_access.json";
-static constexpr const char* channelConfigDefaultFilename ="/SD2:"
+static constexpr const char* channelConfigDefaultFilename = CONFIG_FS_ROOT_OVERLAY
     "/usr/share/ipmi-providers/channel_config.json";
-static constexpr const char* channelNvDataFilename ="/SD2:"
+static constexpr const char* channelNvDataFilename = CONFIG_FS_ROOT_OVERLAY
     "/var/lib/ipmi/channel_access_nv.json";
-static constexpr const char* channelVolatileDataFilename ="/SD2:"
+static constexpr const char* channelVolatileDataFilename = CONFIG_FS_ROOT_OVERLAY
     "/run/ipmi/channel_access_volatile.json";
 
 // TODO: Get the service name dynamically..
