@@ -267,8 +267,18 @@ void sender_task(void* p1, void* p2, void* p3)
         return;
     }
     // busTmp->unique_name = "sender_task";
-    sd_bus_request_name(busTmp, "sender_task", 0);
-    printk_thread("init_zbus_observers");
+    int name_rc = sd_bus_request_name(busTmp, "xyz.openbmc_project.sender_task", 0);
+    if (name_rc < 0) {
+        printk_thread("sd_bus_request_name failed: %d (broker busy, retrying...)", name_rc);
+        /* Retry once after giving broker time to drain */
+        k_msleep(2000);
+        name_rc = sd_bus_request_name(busTmp, "xyz.openbmc_project.sender_task", 0);
+        if (name_rc < 0) {
+            printk_thread("sd_bus_request_name failed again: %d, continuing without name", name_rc);
+            /* Continue anyway - the bus connection still works for method calls */
+        }
+    }
+    // printk_thread("init_zbus_observers");
     // init_zbus_observers(busTmp, "test");
 
     printk_thread("connection\n");
