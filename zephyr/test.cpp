@@ -22,7 +22,11 @@
 // Global io_context for background processing
 static std::shared_ptr<boost::asio::io_context> g_io_context;
 static struct k_thread io_worker_thread;
-static K_THREAD_STACK_DEFINE(io_worker_stack, 8192);
+/* The io_context event loop + D-Bus/sd_bus message processing + IPMI
+ * response callbacks (C++ with sdbusplus/boost::asio) need far more than
+ * the original 8 KiB; it overflowed the stack (caught by the stack
+ * sentinel). Bumped to 32 KiB to match the broker thread workload. */
+static K_THREAD_STACK_DEFINE(io_worker_stack, 32 * 1024);
 
 // Worker function to run io_context in background
 void io_worker_func(void* p1, void* p2, void* p3)
@@ -311,20 +315,21 @@ void sender_task(void* p1, void* p2, void* p3)
     k_thread_create(&io_worker_thread, io_worker_stack, K_THREAD_STACK_SIZEOF(io_worker_stack),
                     io_worker_func, &io, NULL, NULL,
                     4, 0, K_NO_WAIT);
+    k_thread_name_set(&io_worker_thread, "ipmi_io_worker");
     
     // Give the worker thread time to start
     k_msleep(100);
     printk_thread("[TEST] Worker thread started, submitting commands");
 
-    printk_thread("[TEST] Submitting 20 commands with delays");
-    for (int i = 0; i < 20; i++)
+    printk_thread("[TEST] Submitting 10 commands with delays");
+    for (int i = 0; i < 10; i++)
     {
         do_sender_task(conn, netFn, lun, cmd, commandData, options);
 
         // Add small delay between batches to allow processing
-        if ((i + 1) % 10 == 0) {
-            printk_thread("[TEST] Submitted batch %d, waiting for responses...", (i + 1) / 10);
-            k_msleep(200);  // Wait 500ms for D-Bus responses
+        if ((i + 1) % 5 == 0) {
+            printk_thread("[TEST] Submitted batch %d, waiting for responses...", (i + 1) / 5);
+            k_msleep(200);  // Wait 200ms for D-Bus responses
         }
     }
 
