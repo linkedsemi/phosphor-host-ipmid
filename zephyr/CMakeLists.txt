@@ -40,7 +40,7 @@ if(CONFIG_OPENBMC_PHOSPHOR_HOST_IPMID)
         ${ZEPHYR_CURRENT_MODULE_DIR}/user_channel/user_mgmt.cpp
         ${ZEPHYR_CURRENT_MODULE_DIR}/user_channel/passwd_mgr.cpp
 
-        test.cpp
+        # test.cpp
     )
 
     zephyr_library_include_directories(
