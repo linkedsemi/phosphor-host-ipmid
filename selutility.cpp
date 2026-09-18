@@ -410,9 +410,7 @@ void readLoggingObjectPaths(ObjectPaths& paths)
     try
     {
         auto reply = bus.call(mapperCall);
-#if 0
         reply.read(paths);
-#endif /* 0 */
     }
     catch (const sdbusplus::exception_t& e)
     {
