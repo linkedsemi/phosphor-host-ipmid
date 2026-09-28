@@ -955,6 +955,20 @@ static constexpr uint8_t allSupport = 0x01 | 0x02 | 0x04;
 std::optional<uint2_t> getPowerRestorePolicy()
 {
     uint2_t restorePolicy = 0;
+#ifdef __ZEPHYR__
+    /* The PowerRestorePolicy lives in the settings daemon, which does not
+     * exist on Zephyr. cache::getObjects() cannot be used here: its mapper
+     * GetSubTree comes back empty and it throws InternalFailure, which
+     * escapes this function and fails the whole Get Chassis Status command
+     * ("Handler failed to catch exception ... NETFN=0 CMD=1").
+     *
+     * Report the default policy instead. There is no real power sequencing on
+     * this platform either, so AlwaysOff is as honest as anything. The Set
+     * path (ipmiChassisSetPowerRestorePolicy) still fails, like every other
+     * control path on Zephyr. */
+    restorePolicy = dbusToIpmi.at(RestorePolicy::Policy::AlwaysOff);
+    return std::make_optional(restorePolicy);
+#endif
     using namespace chassis::internal;
 
     settings::Objects& objects = cache::getObjects();
