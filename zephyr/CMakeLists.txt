@@ -38,6 +38,7 @@ if(CONFIG_OPENBMC_PHOSPHOR_HOST_IPMID)
 
         ${ZEPHYR_CURRENT_MODULE_DIR}/user_channel/user_layer.cpp
         ${ZEPHYR_CURRENT_MODULE_DIR}/user_channel/user_mgmt.cpp
+        ${ZEPHYR_CURRENT_MODULE_DIR}/user_channel/usercommands.cpp
         ${ZEPHYR_CURRENT_MODULE_DIR}/user_channel/passwd_mgr.cpp
 
         # test.cpp
@@ -57,7 +58,9 @@ if(CONFIG_OPENBMC_PHOSPHOR_HOST_IPMID)
     # zephyr_library_link_libraries(zbusplus)
     zephyr_library_link_libraries(phosphor-logging)
     zephyr_library_link_libraries(phosphor-objmgr)
-    # zephyr_library_link_libraries(phosphor-user-manager)
+    # The user_channel layer authenticates and changes passwords through the
+    # user-manager local store (no PAM on Zephyr).
+    zephyr_library_link_libraries(phosphor-user-manager)
 
     # zephyr_library_link_libraries(zephyr-test)
 

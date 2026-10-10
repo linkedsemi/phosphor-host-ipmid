@@ -19,6 +19,10 @@
 #include "passwd_mgr.hpp"
 #include "user_mgmt.hpp"
 
+#ifdef __ZEPHYR__
+#include "user_mgr_libc.h"
+#endif
+
 namespace
 {
 ipmi::PasswdMgr passwdMgr;
@@ -179,10 +183,13 @@ bool ipmiUserPamAuthenticate(std::string_view userName,
                              std::string_view userPassword)
 {
 #ifdef __ZEPHYR__
-    // std::string _userName(userName);
-    // std::string _userPassword(userPassword);
-    // return phosphor::user::UserMgr::zephyrAuthenticate(_userName, _userPassword, "ipmi");
-    return true;
+    // Zephyr has no PAM stack: verify the credentials against the local user
+    // store owned by phosphor-user-manager, the same entry point bmcweb uses.
+    return zephyrAuthenticate(userName.data(),
+                              static_cast<uint32_t>(userName.size()),
+                              userPassword.data(),
+                              static_cast<uint32_t>(userPassword.size()),
+                              "ipmi") == ZEPHYR_PAM_SUCCESS;
 #else
     return pamUserCheckAuthenticate(userName, userPassword);
 #endif /* __ZEPHYR__ */

@@ -18,6 +18,12 @@
 
 #include "file.hpp"
 #include "shadowlock.hpp"
+#ifdef __ZEPHYR__
+#include "user_mgr_libc.h"
+#include "user_layer.hpp"
+
+#include <openssl/crypto.h>
+#endif
 
 #include <openssl/hmac.h>
 #include <openssl/rand.h>
@@ -96,10 +102,23 @@ void PasswdMgr::restrictFilesPermission(void)
 #ifdef __ZEPHYR__
 SecureString PasswdMgr::getPasswdByUserName(const std::string& userName)
 {
-    // std::string passwd = phosphor::user::UserMgr::getPasswdByUserName(userName);
-    // SecureString secureStrPasswd(passwd.c_str());
-    // return secureStrPasswd;
-    return SecureString();
+    SecureString passwd;
+    passwd.resize(maxIpmi20PasswordSize);
+    const int len = zephyrGetPassword(userName.data(),
+                                      static_cast<uint32_t>(userName.size()),
+                                      passwd.data(),
+                                      static_cast<uint32_t>(passwd.size()));
+    if (len <= 0)
+    {
+        return SecureString();
+    }
+    // Clear the unused tail before trimming it away.
+    if (static_cast<size_t>(len) < passwd.size())
+    {
+        OPENSSL_cleanse(passwd.data() + len, passwd.size() - len);
+    }
+    passwd.resize(static_cast<size_t>(len));
+    return passwd;
 }
 #else
 SecureString PasswdMgr::getPasswdByUserName(const std::string& userName)

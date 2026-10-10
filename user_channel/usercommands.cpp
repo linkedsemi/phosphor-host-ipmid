@@ -20,7 +20,10 @@
 #include "channel_layer.hpp"
 #include "user_layer.hpp"
 
+#ifndef __ZEPHYR__
+/* Zephyr has no PAM; user_layer/user_mgmt talk to phosphor-user-manager. */
 #include <security/pam_appl.h>
+#endif
 
 #include <ipmid/api.hpp>
 #include <phosphor-logging/log.hpp>
