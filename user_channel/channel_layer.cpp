@@ -21,11 +21,31 @@
 
 #include <phosphor-logging/log.hpp>
 
+#ifdef __ZEPHYR__
+#include <zephyr/net/net_if.h>
+#endif
+
 namespace ipmi
 {
 
 bool doesDeviceExist(const uint8_t chNum)
 {
+#ifdef __ZEPHYR__
+    // Zephyr has no /sys/class/net: channel_config.json names the channel
+    // after the network interface ("eth0"), so ask the network stack instead.
+    const std::string devName = getChannelName(chNum);
+    if (devName.empty())
+    {
+        return false;
+    }
+    if (net_if_get_by_name(devName.c_str()) <= 0)
+    {
+        phosphor::logging::log<phosphor::logging::level::DEBUG>(
+            "Ethernet device not found");
+        return false;
+    }
+    return true;
+#else
     // TODO: This is not the reliable way to find the device
     // associated with ethernet interface as the channel number to
     // eth association is not done. Need to revisit later
@@ -40,6 +60,7 @@ bool doesDeviceExist(const uint8_t chNum)
     }
 
     return true;
+#endif /* __ZEPHYR__ */
 }
 
 bool isValidPrivLimit(const uint8_t privLimit)
