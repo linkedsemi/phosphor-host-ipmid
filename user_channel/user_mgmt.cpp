@@ -22,6 +22,9 @@
 #if 0
 #include <security/pam_appl.h>
 #endif /* 0 */
+#ifdef __ZEPHYR__
+#include "user_mgr_libc.h"
+#endif
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -761,11 +764,17 @@ bool pamUserCheckAuthenticate(std::string_view username,
 Cc UserAccess::setSpecialUserPassword(const std::string& userName,
                                       const SecureString& userPassword)
 {
-    // if (phosphor::user::UserMgr::zephyrUpdatePassword(userName, userPassword.c_str()) != ZEPHYR_PAM_SUCCESS)
-    // {
-    //     log<level::DEBUG>("Failed to update password");
-    //     return ccUnspecifiedError;
-    // }
+    // Zephyr has no PAM stack: write the password through the local user
+    // store owned by phosphor-user-manager.
+    if (zephyrUpdatePassword(userName.data(),
+                             static_cast<uint32_t>(userName.size()),
+                             userPassword.c_str(),
+                             static_cast<uint32_t>(userPassword.size())) !=
+        ZEPHYR_PAM_SUCCESS)
+    {
+        log<level::DEBUG>("Failed to update password");
+        return ccUnspecifiedError;
+    }
     return ccSuccess;
 }
 #else
@@ -784,38 +793,39 @@ Cc UserAccess::setSpecialUserPassword(const std::string& userName,
 #ifdef __ZEPHYR__
 Cc UserAccess::setUserPassword(const uint8_t userId, const char* userPassword)
 {
-    // std::string userName;
-    // if (ipmiUserGetUserName(userId, userName) != ccSuccess)
-    // {
-    //     log<level::DEBUG>("User Name not found",
-    //                       entry("USER-ID=%d", (uint8_t)userId));
-    //     return ccParmOutOfRange;
-    // }
+    std::string userName;
+    if (ipmiUserGetUserName(userId, userName) != ccSuccess)
+    {
+        log<level::DEBUG>("User Name not found",
+                          entry("USER-ID=%d", (uint8_t)userId));
+        return ccParmOutOfRange;
+    }
 
-    // // ipmi::SecureString passwd;
-    // // passwd.assign(reinterpret_cast<const char*>(userPassword), 0,
-    // //               maxIpmi20PasswordSize);
-    // int retval = phosphor::user::UserMgr::zephyrUpdatePassword(userName, userPassword);
+    ipmi::SecureString passwd;
+    passwd.assign(reinterpret_cast<const char*>(userPassword), 0,
+                  maxIpmi20PasswordSize);
+    const int retval = zephyrUpdatePassword(
+        userName.data(), static_cast<uint32_t>(userName.size()), passwd.c_str(),
+        static_cast<uint32_t>(passwd.size()));
 
-    // switch (retval)
-    // {
-    //     case ZEPHYR_PAM_SUCCESS:
-    //     {
-    //         return ccSuccess;
-    //     }
-    //     case ZEPHYR_PAM_AUTHTOK_ERR:
-    //     {
-    //         log<level::DEBUG>("Bad authentication token");
-    //         return ccInvalidFieldRequest;
-    //     }
-    //     default:
-    //     {
-    //         log<level::DEBUG>("Failed to update password",
-    //                           entry("USER-ID=%d", (uint8_t)userId));
-    //         return ccUnspecifiedError;
-    //     }
-    // }
-    return ccSuccess;
+    switch (retval)
+    {
+        case ZEPHYR_PAM_SUCCESS:
+        {
+            return ccSuccess;
+        }
+        case ZEPHYR_PAM_AUTHTOK_ERR:
+        {
+            log<level::DEBUG>("Bad authentication token");
+            return ccInvalidFieldRequest;
+        }
+        default:
+        {
+            log<level::DEBUG>("Failed to update password",
+                              entry("USER-ID=%d", (uint8_t)userId));
+            return ccUnspecifiedError;
+        }
+    }
 }
 #else
 Cc UserAccess::setUserPassword(const uint8_t userId, const char* userPassword)
@@ -1581,6 +1591,17 @@ void UserAccess::deleteUserIndex(const size_t& usrIdx)
 
 void UserAccess::checkAndReloadUserData()
 {
+#ifdef __ZEPHYR__
+    // TODO(zephyr): littlefs/FatFs do not provide st_mtim, so
+    // getUpdatedFileTime() reports "changed" on every call and this function
+    // re-reads ipmi_user.json (~0.9 s) for every user lookup - several times
+    // per RAKP handshake, which pushed the handshake past ipmitool's timeout
+    // and the 3 s session setup grace.  The table is loaded once by
+    // cacheUserDataFile() and the setters keep it up to date, so skip the
+    // reload here until a working change detector (mtime or dirty flag) is
+    // available.
+    return;
+#else
     std::timespec updateTime = getUpdatedFileTime();
     if ((updateTime.tv_sec != fileLastUpdatedTime.tv_sec ||
          updateTime.tv_nsec != fileLastUpdatedTime.tv_nsec) ||
@@ -1591,6 +1612,7 @@ void UserAccess::checkAndReloadUserData()
         readUserData();
     }
     return;
+#endif
 }
 
 UsersTbl* UserAccess::getUsersTblPtr()
