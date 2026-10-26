@@ -51,13 +51,6 @@
 #include <utility>
 #include <vector>
 
-// #ifdef __ZEPHYR__
-// #include <zephyr/kernel.h>
-// #include "zbusplus.h"
-
-// extern struct k_sem host_ipmid_ready_sem;
-// #endif /* __ZEPHYR__ */
-
 namespace fs = std::filesystem;
 
 using namespace phosphor::logging;
@@ -718,7 +711,7 @@ extern func_ptr __ipmi_netfn_register_array_start[];
 extern func_ptr __ipmi_netfn_register_array_end[];
 static void loadProviders()
 {
-    printk("IPMI register init...\n");
+    printk_thread("IPMI register init...");
     for (func_ptr *func = __ipmi_netfn_register_array_start; func < __ipmi_netfn_register_array_end; func++) {
 		// printk("init item %p, function ptr %p\n", func, *func);
 		(*func)();
