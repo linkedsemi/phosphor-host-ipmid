@@ -594,6 +594,14 @@ auto executionEntry(boost::asio::yield_context yield, sdbusplus::message_t& m,
         ctx, std::forward<ipmi::SecureBuffer>(data));
     message::Response::ptr response = executeIpmiCommand(request);
 
+    /* Completion trace for the KCS path, paired with the "executionEntry"
+     * line printed on entry.  A request that logs the entry line but never
+     * this one stalled inside executeIpmiCommand().  One line per IPMI
+     * request is cheap; drop it once the KCS bridge is considered stable. */
+    printk_thread("executionEntry: netfn %#x cmd %#x -> cc %#x, %u byte(s)",
+                  netFn, cmd, response->cc,
+                  static_cast<unsigned>(response->payload.raw.size()));
+
     return dbusResponse(response->cc, response->payload.raw);
 }
 

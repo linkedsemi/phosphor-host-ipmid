@@ -13,6 +13,7 @@
 #include <sys/types.h>
 #include <systemd/sd-bus.h>
 #include <unistd.h>
+#include <zephyr/kernel.h>
 
 #include <algorithm>
 #include <app/channel.hpp>
@@ -188,8 +189,32 @@ std::string getActiveSoftwareVersionInfo(ipmi::Context::ptr ctx)
     return revision;
 }
 
+/* Cost of this lookup is one GetSubTree plus one GetProperty round trip,
+ * measured at ~140 ms on this platform: the KCS trace shows Get Device ID
+ * taking 163 ms while a command that touches no D-Bus takes 23 ms.  Get
+ * Device ID is one of the commands the BIOS polls hardest while it boots, so
+ * cache the answer briefly.  The BMC ready state cannot meaningfully flip
+ * faster than that, and a value this stale cannot mislead the "BMC
+ * available" bit of the Device ID response.
+ *
+ * Only successful lookups are cached: on failure the exception propagates as
+ * before, so the next request retries immediately instead of pinning a
+ * degraded answer.  All callers run on the ipmid io thread, so the statics
+ * need no locking. */
+static constexpr int64_t bmcStateCacheTtlMs = 5000;
+
 bool getCurrentBmcState()
 {
+    static bool cachedValue = false;
+    static int64_t cachedAtMs = 0;
+    static bool cacheValid = false;
+
+    int64_t now = k_uptime_get();
+    if (cacheValid && (now - cachedAtMs) < bmcStateCacheTtlMs)
+    {
+        return cachedValue;
+    }
+
     sdbusplus::bus_t bus{ipmid_get_sd_bus_connection()};
 
     // Get the Inventory object implementing the BMC interface
@@ -199,9 +224,13 @@ bool getCurrentBmcState()
         ipmi::getDbusProperty(bus, bmcObject.second, bmcObject.first,
                               bmc_state_interface, bmc_state_property);
 
-    return std::holds_alternative<std::string>(variant) &&
-           BMC::convertBMCStateFromString(std::get<std::string>(variant)) ==
-               BMC::BMCState::Ready;
+    cachedValue = std::holds_alternative<std::string>(variant) &&
+                  BMC::convertBMCStateFromString(
+                      std::get<std::string>(variant)) == BMC::BMCState::Ready;
+    cachedAtMs = now;
+    cacheValid = true;
+
+    return cachedValue;
 }
 
 bool getCurrentBmcStateWithFallback(const bool fallbackAvailability)

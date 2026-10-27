@@ -1981,7 +1981,25 @@ ipmi::RspType<ipmi::message::Payload>
                 return ipmi::response(rc);
             }
 
-            bootOption = sourceDbusToIpmi.at(bootSource);
+            /* Use find() instead of at(): the tables below do not cover
+             * every value their D-Bus enums can carry, and at() threw
+             * std::out_of_range ("map::at") straight out of Get System Boot
+             * Options while the BIOS was polling it during POST.  It reached
+             * the host as an Unspecified error (0xff) and looked like the
+             * BMC had stopped answering.
+             *
+             * Case actually hit here: BootMode is ...Boot.Mode.Modes.Safe,
+             * but modeDbusToIpmi only contains Safe when
+             * ENABLE_BOOT_FLAG_SAFE_MODE_SUPPORT is defined, which this
+             * build does not define.  That switch is deliberately left off:
+             * enabling it would report boot flag 0x03 (safe mode) to the
+             * BIOS and change which firmware it boots.  Falling back to the
+             * IPMI default (normal boot) is the wanted behaviour. */
+            const auto sourceIt = sourceDbusToIpmi.find(bootSource);
+            if (sourceIt != sourceDbusToIpmi.end())
+            {
+                bootOption = sourceIt->second;
+            }
             if ((Mode::Modes::Regular == bootMode) &&
                 (Source::Sources::Default == bootSource))
             {
@@ -1989,10 +2007,16 @@ ipmi::RspType<ipmi::message::Payload>
             }
             else if (Source::Sources::Default == bootSource)
             {
-                bootOption = modeDbusToIpmi.at(bootMode);
+                const auto modeIt = modeDbusToIpmi.find(bootMode);
+                if (modeIt != modeDbusToIpmi.end())
+                {
+                    bootOption = modeIt->second;
+                }
             }
 
-            IpmiValue biosBootType = typeDbusToIpmi.at(bootType);
+            const auto typeIt = typeDbusToIpmi.find(bootType);
+            IpmiValue biosBootType =
+                (typeIt != typeDbusToIpmi.end()) ? typeIt->second : ipmiDefault;
 
             bool oneTimeEnabled;
             rc = getBootOneTime(ctx, oneTimeEnabled);
