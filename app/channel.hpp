@@ -80,7 +80,11 @@ namespace cipher
 static constexpr auto listCipherSuite = 0x80;
 
 using Json = nlohmann::json;
+#ifdef __ZEPHYR__
+static constexpr auto configFile = CONFIG_FS_ROOT_OVERLAY "/usr/share/ipmi-providers/cipher_list.json";
+#else
 static constexpr auto configFile = "/usr/share/ipmi-providers/cipher_list.json";
+#endif /* __ZEPHYR__ */
 static constexpr auto cipher = "cipher";
 static constexpr auto stdCipherSuite = 0xC0;
 static constexpr auto oemCipherSuite = 0xC1;
