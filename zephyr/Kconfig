@@ -4,3 +4,8 @@ config OPENBMC_PHOSPHOR_HOST_IPMID
     bool "openbmc phosphor host ipmid"
     select WOLFSSL
 
+config OPENBMC_HOST_IPMID_DYNAMIC_SENSORS
+    bool "Enable dynamic SDR generation from D-Bus sensors"
+    depends on OPENBMC_PHOSPHOR_HOST_IPMID
+    default y
+

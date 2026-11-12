@@ -21,7 +21,6 @@
 
 #include <boost/algorithm/string.hpp>
 #include <boost/container/flat_map.hpp>
-#include <boost/process.hpp>
 #include <filesystem>
 #include <fstream>
 #include <functional>
@@ -67,12 +66,14 @@ void save()
         return;
     }
 
+#ifndef __ZEPHYR__
     // update the file timestamp to the current time
     if (futimens(fd, NULL) < 0)
     {
         std::cerr << "Failed to update timestamp: "
                   << std::string(strerror(errno));
     }
+#endif
     close(fd);
 }
 

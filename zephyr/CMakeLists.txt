@@ -44,6 +44,16 @@ if(CONFIG_OPENBMC_PHOSPHOR_HOST_IPMID)
         # test.cpp
     )
 
+    if(CONFIG_OPENBMC_HOST_IPMID_DYNAMIC_SENSORS)
+        zephyr_library_sources(
+            ${ZEPHYR_CURRENT_MODULE_DIR}/dbus-sdr/sensorutils.cpp
+            ${ZEPHYR_CURRENT_MODULE_DIR}/dbus-sdr/sdrutils.cpp
+            ${ZEPHYR_CURRENT_MODULE_DIR}/dbus-sdr/sensorcommands.cpp
+            ${ZEPHYR_CURRENT_MODULE_DIR}/dbus-sdr/storagecommands.cpp
+        )
+        zephyr_library_compile_definitions(FEATURE_DYNAMIC_SENSORS)
+    endif()
+
     zephyr_library_include_directories(
         ${ZEPHYR_CURRENT_MODULE_DIR}
         ${ZEPHYR_CURRENT_MODULE_DIR}/include

@@ -366,7 +366,10 @@ std::string getPathFromSensorNumber(uint16_t sensorNum);
 
 namespace ipmi
 {
-std::map<std::string, std::vector<std::string>>
+// Returns std::nullopt when the optional Entity-Manager per-sensor override
+// object does not exist. Callers should continue with the board-level default
+// IPMI entity information in that case.
+std::optional<std::map<std::string, std::vector<std::string>>>
     getObjectInterfaces(const char* path);
 
 std::map<std::string, Value> getEntityManagerProperties(const char* path,

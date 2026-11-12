@@ -313,7 +313,7 @@ std::string getPathFromSensorNumber(uint16_t sensorNum)
 namespace ipmi
 {
 
-std::map<std::string, std::vector<std::string>>
+std::optional<std::map<std::string, std::vector<std::string>>>
     getObjectInterfaces(const char* path)
 {
     std::map<std::string, std::vector<std::string>> interfacesResponse;
@@ -333,9 +333,11 @@ std::map<std::string, std::vector<std::string>>
     }
     catch (const std::exception& e)
     {
-        phosphor::logging::log<phosphor::logging::level::ERR>(
+        // Upstream treats per-sensor Entity-Manager overrides as optional.
+        phosphor::logging::log<phosphor::logging::level::DEBUG>(
             "Failed to GetObject", phosphor::logging::entry("PATH=%s", path),
             phosphor::logging::entry("WHAT=%s", e.what()));
+        return std::nullopt;
     }
 
     return interfacesResponse;
@@ -528,19 +530,23 @@ void updateIpmiFromAssociation(
         // Download the interfaces for the sensor from
         // Entity-Manager to find the name of the configuration
         // interface.
-        std::map<std::string, std::vector<std::string>>
-            sensorInterfacesResponse =
+        std::optional<std::map<std::string, std::vector<std::string>>>
+            sensorInterfacesResponseOpt =
                 getObjectInterfaces(sensorConfigPath.c_str());
 
-        const std::string* configurationInterface =
-            getSensorConfigurationInterface(sensorInterfacesResponse);
+        // Align with upstream: missing overrides are optional.
+        if (!sensorInterfacesResponseOpt.has_value())
+        {
+            continue;
+        }
 
-        // We didnt' find a configuration interface for this sensor, but we
-        // followed the Association property to get here, so we're done
-        // searching.
+        const std::string* configurationInterface =
+            getSensorConfigurationInterface(*sensorInterfacesResponseOpt);
+
+        // Keep looking for another valid Association entry.
         if (!configurationInterface)
         {
-            break;
+            continue;
         }
 
         // We found a configuration interface.

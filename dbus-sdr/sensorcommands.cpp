@@ -131,6 +131,36 @@ DECLARATION_IPMI_NETFN_FUNC_REGISTER(registerSensorFunctions);
 void registerSensorFunctions() __attribute__((constructor));
 #endif /* __ZEPHYR__*/
 
+#ifdef __ZEPHYR__
+// Create global D-Bus matches after ipmid_main() initializes the bus.
+static void initializeSensorMatches()
+{
+    static sdbusplus::bus::match_t sensorAdded(
+        *getSdBus(),
+        "type='signal',member='InterfacesAdded',arg0path='/xyz/openbmc_project/"
+        "sensors/'",
+        [](sdbusplus::message_t&) {
+            getSensorTree().clear();
+            getIpmiDecoratorPaths(/*ctx=*/std::nullopt).reset();
+            sdrLastAdd = std::chrono::duration_cast<std::chrono::seconds>(
+                             std::chrono::system_clock::now().time_since_epoch())
+                             .count();
+        });
+
+    static sdbusplus::bus::match_t sensorRemoved(
+        *getSdBus(),
+        "type='signal',member='InterfacesRemoved',arg0path='/xyz/openbmc_project/"
+        "sensors/'",
+        [](sdbusplus::message_t&) {
+            getSensorTree().clear();
+            getIpmiDecoratorPaths(/*ctx=*/std::nullopt).reset();
+            sdrLastRemove = std::chrono::duration_cast<std::chrono::seconds>(
+                                std::chrono::system_clock::now()
+                                    .time_since_epoch())
+                                .count();
+        });
+}
+#else
 static sdbusplus::bus::match_t sensorAdded(
     *getSdBus(),
     "type='signal',member='InterfacesAdded',arg0path='/xyz/openbmc_project/"
@@ -154,6 +184,7 @@ static sdbusplus::bus::match_t sensorRemoved(
                             std::chrono::system_clock::now().time_since_epoch())
                             .count();
     });
+#endif
 
 // this keeps track of deassertions for sensor event status command. A
 // deasertion can only happen if an assertion was seen first.
@@ -161,11 +192,21 @@ static boost::container::flat_map<
     std::string, boost::container::flat_map<std::string, std::optional<bool>>>
     thresholdDeassertMap;
 
+#ifdef __ZEPHYR__
+static void initializeSensorThrottleMatch()
+{
+    static sdbusplus::bus::match_t thresholdChanged(
+        *getSdBus(),
+        "type='signal',member='PropertiesChanged',interface='org.freedesktop.DBus."
+        "Properties',arg0namespace='xyz.openbmc_project.Sensor.Threshold'",
+        [](sdbusplus::message_t& m) {
+#else
 static sdbusplus::bus::match_t thresholdChanged(
     *getSdBus(),
     "type='signal',member='PropertiesChanged',interface='org.freedesktop.DBus."
     "Properties',arg0namespace='xyz.openbmc_project.Sensor.Threshold'",
     [](sdbusplus::message_t& m) {
+#endif
         boost::container::flat_map<std::string, std::variant<bool, double>>
             values;
         m.read(std::string(), values);
@@ -204,6 +245,9 @@ static sdbusplus::bus::match_t thresholdChanged(
             }
         }
     });
+#ifdef __ZEPHYR__
+}
+#endif
 
 namespace sensor
 {
@@ -2584,6 +2628,11 @@ ipmi::RspType<uint8_t,              // No of instances for requested id
 
 void registerSensorFunctions()
 {
+#ifdef __ZEPHYR__
+    initializeSensorMatches();
+    initializeSensorThrottleMatch();
+#endif
+
     // <Platform Event>
     ipmi::registerHandler(ipmi::prioOpenBmcBase, ipmi::netFnSensor,
                           ipmi::sensor_event::cmdPlatformEvent,
