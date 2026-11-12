@@ -501,8 +501,8 @@ auto executionEntry(boost::asio::yield_context yield, sdbusplus::message_t& m,
                     NetFn netFn, uint8_t lun, Cmd cmd, ipmi::SecureBuffer& data,
                     std::map<std::string, ipmi::Value>& options)
 {
-    printk_thread("executionEntry: netFn %#x, lun %#x, cmd %#x",
-                                   netFn, lun, cmd);
+    // printk_thread("executionEntry: netFn %#x, lun %#x, cmd %#x",
+    //                                netFn, lun, cmd);
     const auto dbusResponse =
         [netFn, lun, cmd](Cc cc, const ipmi::SecureBuffer& data = {}) {
             constexpr uint8_t netFnResponse = 0x01;
@@ -593,14 +593,6 @@ auto executionEntry(boost::asio::yield_context yield, sdbusplus::message_t& m,
     auto request = std::make_shared<ipmi::message::Request>(
         ctx, std::forward<ipmi::SecureBuffer>(data));
     message::Response::ptr response = executeIpmiCommand(request);
-
-    /* Completion trace for the KCS path, paired with the "executionEntry"
-     * line printed on entry.  A request that logs the entry line but never
-     * this one stalled inside executeIpmiCommand().  One line per IPMI
-     * request is cheap; drop it once the KCS bridge is considered stable. */
-    printk_thread("executionEntry: netfn %#x cmd %#x -> cc %#x, %u byte(s)",
-                  netFn, cmd, response->cc,
-                  static_cast<unsigned>(response->payload.raw.size()));
 
     return dbusResponse(response->cc, response->payload.raw);
 }
