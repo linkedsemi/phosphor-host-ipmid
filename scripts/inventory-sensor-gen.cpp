@@ -4,6 +4,19 @@
 #include <ipmid/types.hpp>
 using namespace ipmi::sensor;
 
+// Dynamic SDR builds do not use invSensors for normal sensor discovery.
+// Keep one system-level entry so the legacy SEL conversion code still links,
+// while avoiding construction of the full generated inventory table.
+extern const InvObjectIDMap __attribute__((init_priority(101))) invSensors = {
+{"/xyz/openbmc_project/inventory/system",
+    {
+        1,18,111,2
+    }
+},
+};
+
+#if 0
+// Original generated table retained for reference.
 extern const InvObjectIDMap __attribute__((init_priority(101))) invSensors = {
 {"/xyz/openbmc_project/inventory/system/chassis/motherboard/dimm0",
     {
@@ -414,3 +427,4 @@ extern const InvObjectIDMap __attribute__((init_priority(101))) invSensors = {
     }
 },
 };
+#endif
