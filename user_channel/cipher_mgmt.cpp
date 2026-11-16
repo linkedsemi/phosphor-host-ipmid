@@ -43,6 +43,9 @@ CipherConfig::CipherConfig(const std::string& csFileName,
     cipherSuitePrivFileName(csFileName),
     cipherSuiteDefaultPrivFileName(csDefaultFileName)
 {
+#ifdef __ZEPHYR__
+    fs::create_directories(fs::path(cipherSuitePrivFileName).parent_path());
+#endif
     loadCSPrivilegesToMap();
 }
 

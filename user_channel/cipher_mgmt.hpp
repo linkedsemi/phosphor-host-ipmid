@@ -26,8 +26,13 @@ namespace ipmi
 static const std::string csPrivDefaultFileName = CONFIG_FS_ROOT_OVERLAY
     "/usr/share/ipmi-providers/cs_privilege_levels.json";
 
+#ifdef __ZEPHYR__
+static const std::string csPrivFileName = CONFIG_FS_ROOT_MNT
+    "/var/lib/ipmi/cs_privilege_levels.json";
+#else
 static const std::string csPrivFileName = CONFIG_FS_ROOT_OVERLAY
     "/var/lib/ipmi/cs_privilege_levels.json";
+#endif
 
 static const size_t maxCSRecords = 16;
 

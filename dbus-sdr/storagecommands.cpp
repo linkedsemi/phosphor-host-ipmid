@@ -38,7 +38,11 @@ static constexpr bool DEBUG = false;
 
 namespace dynamic_sensors::ipmi::sel
 {
+#ifdef __ZEPHYR__
+static const std::filesystem::path selLogDir = CONFIG_FS_ROOT_MNT "/var/log";
+#else
 static const std::filesystem::path selLogDir = "/var/log";
+#endif
 static const std::string selLogFilename = "ipmi_sel";
 
 static int getFileTimestamp(const std::filesystem::path& file)
@@ -54,10 +58,21 @@ static int getFileTimestamp(const std::filesystem::path& file)
 
 namespace erase_time
 {
+#ifdef __ZEPHYR__
+static constexpr const char* selEraseTimestamp =
+    CONFIG_FS_ROOT_MNT "/var/lib/ipmi/sel_erase_time";
+#else
 static constexpr const char* selEraseTimestamp = "/var/lib/ipmi/sel_erase_time";
+#endif
 
 void save()
 {
+#ifdef __ZEPHYR__
+    std::error_code ec;
+    std::filesystem::create_directories(
+        std::filesystem::path(selEraseTimestamp).parent_path(), ec);
+#endif
+
     // open the file, creating it if necessary
     int fd = open(selEraseTimestamp, O_WRONLY | O_CREAT | O_CLOEXEC, 0644);
     if (fd < 0)
@@ -764,6 +779,12 @@ ipmi_ret_t getFruSdrs(ipmi::Context::ptr ctx, size_t index,
 
 static bool getSELLogFiles(std::vector<std::filesystem::path>& selLogFiles)
 {
+#ifdef __ZEPHYR__
+    std::error_code ec;
+    std::filesystem::create_directories(
+        dynamic_sensors::ipmi::sel::selLogDir, ec);
+#endif
+
     // Loop through the directory looking for ipmi_sel log files
     for (const std::filesystem::directory_entry& dirEnt :
          std::filesystem::directory_iterator(

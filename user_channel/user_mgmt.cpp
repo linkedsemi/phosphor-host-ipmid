@@ -31,6 +31,9 @@
 #include <boost/interprocess/sync/named_recursive_mutex.hpp>
 #include <boost/interprocess/sync/scoped_lock.hpp>
 #include <cerrno>
+#ifdef __ZEPHYR__
+#include <filesystem>
+#endif
 #include <fstream>
 #include <ipmid/types.hpp>
 #include <nlohmann/json.hpp>
@@ -77,7 +80,13 @@ static constexpr const char* ipmiMutexCleanupLockFile =
     "/var/lib/ipmi/ipmi_usr_mutex_cleanup";
 static constexpr const char* ipmiUserSignalLockFile =
     "/var/lib/ipmi/ipmi_usr_signal_mutex";
-static constexpr const char* ipmiUserDataFile = CONFIG_FS_ROOT_OVERLAY "/var/lib/ipmi/ipmi_user.json";
+#ifdef __ZEPHYR__
+static constexpr const char* ipmiUserDataFile =
+    CONFIG_FS_ROOT_MNT "/var/lib/ipmi/ipmi_user.json";
+#else
+static constexpr const char* ipmiUserDataFile =
+    "/var/lib/ipmi/ipmi_user.json";
+#endif
 static constexpr const char* ipmiGrpName = "ipmi";
 static constexpr size_t privNoAccess = 0xF;
 static constexpr size_t privMask = 0xF;
@@ -458,6 +467,10 @@ UserAccess::~UserAccess()
 
 UserAccess::UserAccess() : bus(ipmid_get_sd_bus_connection())
 {
+#ifdef __ZEPHYR__
+    std::filesystem::create_directories(
+        std::filesystem::path(ipmiUserDataFile).parent_path());
+#endif
 #ifndef __ZEPHYR__
     std::ofstream mutexCleanUpFile;
     mutexCleanUpFile.open(ipmiMutexCleanupLockFile,

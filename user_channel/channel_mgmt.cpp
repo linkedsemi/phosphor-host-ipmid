@@ -46,10 +46,17 @@ static constexpr const char* channelAccessDefaultFilename = CONFIG_FS_ROOT_OVERL
     "/usr/share/ipmi-providers/channel_access.json";
 static constexpr const char* channelConfigDefaultFilename = CONFIG_FS_ROOT_OVERLAY
     "/usr/share/ipmi-providers/channel_config.json";
-static constexpr const char* channelNvDataFilename = CONFIG_FS_ROOT_OVERLAY
+#ifdef __ZEPHYR__
+static constexpr const char* channelNvDataFilename = CONFIG_FS_ROOT_MNT
     "/var/lib/ipmi/channel_access_nv.json";
-static constexpr const char* channelVolatileDataFilename = CONFIG_FS_ROOT_OVERLAY
+static constexpr const char* channelVolatileDataFilename = CONFIG_FS_ROOT_MNT
     "/run/ipmi/channel_access_volatile.json";
+#else
+static constexpr const char* channelNvDataFilename =
+    "/var/lib/ipmi/channel_access_nv.json";
+static constexpr const char* channelVolatileDataFilename =
+    "/run/ipmi/channel_access_volatile.json";
+#endif
 
 // TODO: Get the service name dynamically..
 static constexpr const char* networkIntfServiceName =
@@ -311,6 +318,12 @@ ChannelConfig::~ChannelConfig()
 
 ChannelConfig::ChannelConfig() : bus(ipmid_get_sd_bus_connection())
 {
+#ifdef __ZEPHYR__
+    std::filesystem::create_directories(
+        std::filesystem::path(channelNvDataFilename).parent_path());
+    std::filesystem::create_directories(
+        std::filesystem::path(channelVolatileDataFilename).parent_path());
+#endif
 #if 0
     std::ofstream mutexCleanUpFile;
     mutexCleanUpFile.open(ipmiChMutexCleanupLockFile,
