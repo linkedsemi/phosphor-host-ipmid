@@ -882,7 +882,10 @@ void register_netfn_storage_functions()
     // Handlers with dbus-sdr handler implementation.
     // Do not register the hander if it dynamic sensors stack is used.
 
-#ifndef FEATURE_DYNAMIC_SENSORS
+    // Zephyr: the dynamic storagecommands backend reads ipmi_sel files that
+    // nothing produces, so SEL is always served by this logging-backed
+    // implementation (see dbus-sdr/storagecommands.cpp).
+#if !defined(FEATURE_DYNAMIC_SENSORS) || defined(__ZEPHYR__)
     // <Get SEL Info>
     ipmi::registerHandler(ipmi::prioOpenBmcBase, ipmi::netFnStorage,
                           ipmi::storage::cmdGetSelInfo, ipmi::Privilege::User,
@@ -916,6 +919,11 @@ void register_netfn_storage_functions()
     ipmi::registerHandler(ipmi::prioOpenBmcBase, ipmi::netFnStorage,
                           ipmi::storage::cmdClearSel, ipmi::Privilege::Operator,
                           clearSEL);
+#endif
+
+    // FRU and SDR repository stay with the dynamic-sensors stack when it is
+    // enabled.
+#ifndef FEATURE_DYNAMIC_SENSORS
 
     // <Get FRU Inventory Area Info>
     ipmi::registerHandler(ipmi::prioOpenBmcBase, ipmi::netFnStorage,
