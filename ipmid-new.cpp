@@ -86,11 +86,29 @@ EInterfaceIndex getInterfaceIndex(void)
     return interfaceKCS;
 }
 
+/* One "Set up ipmi context" trace line per request, see executionEntry().
+ *
+ * Off on Zephyr: sd_journal_send() in this port (basu) renders the fields and
+ * then printk()s the resulting ~140 character line straight to the 115200 baud
+ * console, from the thread handling the request, once per request. That is
+ * ~12 ms of busy-waiting UART charged to the request it describes (~0.65 s
+ * across a 53 request "ipmitool sdr list"). Build with
+ * -DIPMID_TRACE_REQUEST_CONTEXT=1 to turn it back on.
+ */
+#ifndef IPMID_TRACE_REQUEST_CONTEXT
+#ifdef __ZEPHYR__
+#define IPMID_TRACE_REQUEST_CONTEXT 0
+#else
+#define IPMID_TRACE_REQUEST_CONTEXT 1
+#endif
+#endif
+
 #ifdef __ZEPHYR__
 __thread sd_bus* gbus;
 
 #include <zephyr/kernel.h>
 #include <dbus_broker.h>
+#include <ipmi_lat.h> /* Zephyr-only probe, see the guard above */
 #include <printk_thread.h>
 
 extern struct k_sem host_ipmid_ready_sem;
@@ -501,6 +519,10 @@ auto executionEntry(boost::asio::yield_context yield, sdbusplus::message_t& m,
                     NetFn netFn, uint8_t lun, Cmd cmd, ipmi::SecureBuffer& data,
                     std::map<std::string, ipmi::Value>& options)
 {
+    /* Latency probe: mark before the trace so the segment measured here is the
+     * handler itself, printk cost included. */
+    ipmi_lat_set_cmd(static_cast<uint8_t>(netFn), static_cast<uint8_t>(cmd));
+    ipmi_lat_mark(IPMI_LAT_IPMID_IN);
     // printk_thread("executionEntry: netFn %#x, lun %#x, cmd %#x",
     //                                netFn, lun, cmd);
     const auto dbusResponse =
@@ -579,6 +601,16 @@ auto executionEntry(boost::asio::yield_context yield, sdbusplus::message_t& m,
         }
     }
     // check to see if the requested priv/username is valid
+#if IPMID_TRACE_REQUEST_CONTEXT
+    /*
+     * Off by default. On this port sd_journal_send() (basu) renders the fields
+     * and then printk()s the resulting ~175 character line straight to the
+     * 115200 baud console, from this thread, once per IPMI request: that is
+     * ~15 ms of busy-waiting UART inside the request it is describing, i.e.
+     * ~0.8 s added to a 53-request "ipmitool sdr list". Build with
+     * -DIPMID_TRACE_REQUEST_CONTEXT=1 when the context itself is what you are
+     * debugging.
+     */
     log<level::DEBUG>("Set up ipmi context", entry("SENDER=%s", sender.c_str()),
                       entry("NETFN=0x%X", netFn), entry("LUN=0x%X", lun),
                       entry("CMD=0x%X", cmd), entry("CHANNEL=%u", channel),
@@ -586,6 +618,7 @@ auto executionEntry(boost::asio::yield_context yield, sdbusplus::message_t& m,
                       entry("SESSIONID=0x%X", sessionId),
                       entry("PRIVILEGE=%u", static_cast<uint8_t>(privilege)),
                       entry("RQSA=%x", rqSA));
+#endif
 
     auto ctx = std::make_shared<ipmi::Context>(getSdBus(), netFn, lun, cmd,
                                                channel, userId, sessionId,
@@ -593,6 +626,16 @@ auto executionEntry(boost::asio::yield_context yield, sdbusplus::message_t& m,
     auto request = std::make_shared<ipmi::message::Request>(
         ctx, std::forward<ipmi::SecureBuffer>(data));
     message::Response::ptr response = executeIpmiCommand(request);
+
+    /* Completion trace for the KCS path, paired with the "executionEntry"
+     * line printed on entry.  A request that logs the entry line but never
+     * this one stalled inside executeIpmiCommand().  One line per IPMI
+     * request is cheap; drop it once the KCS bridge is considered stable. */
+    /* Latency probe: handler done, before the completion trace. */
+    ipmi_lat_mark(IPMI_LAT_IPMID_OUT);
+    // printk_thread("executionEntry: netfn %#x cmd %#x -> cc %#x, %u byte(s)",
+    //               netFn, cmd, response->cc,
+    //               static_cast<unsigned>(response->payload.raw.size()));
 
     return dbusResponse(response->cc, response->payload.raw);
 }
@@ -899,6 +942,8 @@ int ipmid_main()
     //     sd_bus_default_system(&bus);
     // }
     auto sdbusp = std::make_shared<sdbusplus::asio::connection>(*io, bus);
+    /* Trace sd_bus_process() on this connection only, see ipmi_lat.h. */
+    sdbusp->enable_lat_trace();
     setSdBus(sdbusp);
 
     // TODO: Hack to keep the sdEvents running.... Not sure why the sd_event

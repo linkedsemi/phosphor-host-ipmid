@@ -16,6 +16,12 @@
 
 #include "dbus-sdr/sdrutils.hpp"
 
+#ifdef __ZEPHYR__
+#include <ipmi_lat.h>
+
+#include <chrono>
+#include <unordered_map>
+#endif
 #include <optional>
 #include <unordered_set>
 
@@ -39,6 +45,25 @@ uint16_t getSensorSubtree(std::shared_ptr<SensorSubTree>& subtree)
     static std::shared_ptr<SensorSubTree> sensorTreePtr;
     static uint16_t sensorUpdatedIndex = 0;
     std::shared_ptr<sdbusplus::asio::connection> dbus = getSdBus();
+
+    /*
+     * This function is cached: the expensive path below only runs after a
+     * signal invalidated sensorTreePtr, and it then pays for a GetSubTree (a
+     * second one for the optional VR subtree on the way out), a new
+     * sensor-number map and a wipe of both SDR tables, which forces every SDR
+     * record to be regenerated. Report its cost so that "ipmi_lat dump" can
+     * tell a request that was slow because of a rebuild from one that was slow
+     * on its own -- the rare 1 s requests dominate an average otherwise.
+     */
+#ifdef __ZEPHYR__
+    const uint32_t latStartCyc = k_cycle_get_32();
+    auto latReportRebuild = [&latStartCyc]() {
+        ipmi_lat_subtree_rebuild(
+            k_cyc_to_us_floor32(k_cycle_get_32() - latStartCyc));
+    };
+#else
+    auto latReportRebuild = []() {};
+#endif
     static sdbusplus::bus::match_t sensorAdded(
         *dbus,
         "type='signal',member='InterfacesAdded',arg0path='/xyz/openbmc_project/"
@@ -133,17 +158,41 @@ uint16_t getSensorSubtree(std::shared_ptr<SensorSubTree>& subtree)
     // Error if searching for sensors failed.
     if (!sensorRez)
     {
+        latReportRebuild();
         return sensorUpdatedIndex;
     }
 
     // Add VR control as optional search path.
+#ifdef __ZEPHYR__
+    /*
+     * Most boards (this one included) have no objects in the VR subtree, so the
+     * lookup can only fail. Because the miss is logged at ERR level and the
+     * logging service is reached over D-Bus, retrying it on every tree rebuild
+     * costs a mapper round trip plus a blocking logging round trip. Remember
+     * the miss and re-probe once per vrRecheckPeriod in case VR support
+     * appears.
+     */
+    static constexpr auto vrRecheckPeriod = std::chrono::seconds(300);
+    static bool vrAbsent = false;
+    static std::chrono::steady_clock::time_point vrProbeTime;
+
+    const auto vrNow = std::chrono::steady_clock::now();
+    if (!vrAbsent || (vrNow - vrProbeTime) >= vrRecheckPeriod)
+    {
+        vrAbsent =
+            !lbdUpdateSensorTree("/xyz/openbmc_project/vr", vrInterfaces);
+        vrProbeTime = vrNow;
+    }
+#else
     (void)lbdUpdateSensorTree("/xyz/openbmc_project/vr", vrInterfaces);
+#endif
 
     subtree = sensorTreePtr;
     sensorUpdatedIndex++;
     // The SDR is being regenerated, wipe the old stats
     sdrStatsTable.wipeTable();
     sdrWriteTable.wipeTable();
+    latReportRebuild();
     return sensorUpdatedIndex;
 }
 
@@ -320,6 +369,40 @@ std::optional<std::map<std::string, std::vector<std::string>>>
     std::vector<std::string> interfaces;
     std::shared_ptr<sdbusplus::asio::connection> dbus = getSdBus();
 
+#ifdef __ZEPHYR__
+    /*
+     * Remember "this path does not exist" instead of asking ObjectMapper again.
+     *
+     * The paths asked for here are per-sensor Entity-Manager overrides, which
+     * upstream already treats as optional; on this board none of them exist, so
+     * every SDR record that gets (re)built pays for a mapper round trip that
+     * can only fail. One such round trip costs 20-40 ms here, and the SDR
+     * records are rebuilt whenever the sensor tree is regenerated, so the same
+     * misses repeat over and over. Caching the miss keeps the first lookup
+     * honest and makes the repeats free; a path that starts existing later is
+     * picked up within kObjectMissTtl.
+     *
+     * Only the ipmid command thread calls this function, so the static map
+     * needs no lock.
+     */
+    static constexpr std::chrono::seconds kObjectMissTtl{60};
+    static constexpr size_t kObjectMissMax = 256;
+    static std::unordered_map<std::string,
+                              std::chrono::steady_clock::time_point>
+        knownMisses;
+
+    const auto lookupTime = std::chrono::steady_clock::now();
+    auto known = knownMisses.find(path);
+    if (known != knownMisses.end())
+    {
+        if ((lookupTime - known->second) < kObjectMissTtl)
+        {
+            return std::nullopt;
+        }
+        knownMisses.erase(known);
+    }
+#endif
+
     sdbusplus::message_t getObjectMessage =
         dbus->new_method_call("xyz.openbmc_project.ObjectMapper",
                               "/xyz/openbmc_project/object_mapper",
@@ -337,6 +420,13 @@ std::optional<std::map<std::string, std::vector<std::string>>>
         phosphor::logging::log<phosphor::logging::level::DEBUG>(
             "Failed to GetObject", phosphor::logging::entry("PATH=%s", path),
             phosphor::logging::entry("WHAT=%s", e.what()));
+#ifdef __ZEPHYR__
+        if (knownMisses.size() >= kObjectMissMax)
+        {
+            knownMisses.clear();
+        }
+        knownMisses.emplace(path, lookupTime);
+#endif
         return std::nullopt;
     }
 

@@ -21,6 +21,14 @@
 #include "dbus-sdr/storagecommands.hpp"
 #include "entity_map_json.hpp"
 
+#ifdef __ZEPHYR__
+#include <ipmi_lat.h>
+#else
+#define ipmi_lat_mark(pt) do { (void)(pt); } while (0)
+#define ipmi_lat_map_rebuild(us, objects) do { (void)(us); (void)(objects); } while (0)
+#define ipmi_lat_set_cmd(netfn, cmd) do { (void)(netfn); (void)(cmd); } while (0)
+#endif
+
 #include <algorithm>
 #include <array>
 #include <boost/algorithm/string.hpp>
@@ -362,6 +370,12 @@ static bool getSensorMap(ipmi::Context::ptr ctx, std::string sensorConnection,
             .count() > updatePeriod)
     {
         bool found = false;
+#ifdef __ZEPHYR__
+        /* Reported by "ipmi_lat dump" as getSensorMap rebuilds; a rebuild is
+         * a full GetManagedObjects and only happens once per updatePeriod, so
+         * it never shows up as its own segment in the per-request table. */
+        const uint32_t mapStartCyc = k_cycle_get_32();
+#endif
 
         // Object managers for different kinds of OpenBMC DBus interfaces.
         // Documented in the phosphor-dbus-interfaces repository.
@@ -372,25 +386,96 @@ static bool getSensorMap(ipmi::Context::ptr ctx, std::string sensorConnection,
         constexpr size_t num_paths = sizeof(paths) / sizeof(paths[0]);
         ObjectValueTree allManagedObjects;
 
+#ifdef __ZEPHYR__
+        /*
+         * Zephyr-only cache of "the VR subtree is not there".
+         *
+         * /xyz/openbmc_project/vr only exists on boards that expose VR
+         * sensors. Where it does not, GetManagedObjects answers
+         * xyz.openbmc_project.Common.Error.ResourceNotFound, and on this port
+         * that miss costs a full ObjectMapper request/response pair plus a
+         * logging entry (itself a D-Bus call) on every rebuild. Remember the
+         * miss instead; the subtree, if it ever appears, is picked up within
+         * vrRecheckPeriod.
+         */
+        static constexpr auto vrRecheckPeriod = std::chrono::seconds(300);
+        static bool vrAbsent = false;
+        static std::chrono::time_point<std::chrono::steady_clock> vrProbeTime;
+#endif
+
         for (size_t i = 0; i < num_paths; i++)
         {
+#ifdef __ZEPHYR__
+            const bool optionalPath = (i == 1U);
+
+            if (optionalPath && vrAbsent &&
+                (now - vrProbeTime) < vrRecheckPeriod)
+            {
+                continue;
+            }
+#endif
+
             ObjectValueTree managedObjects;
             boost::system::error_code ec = getManagedObjects(
                 ctx, sensorConnection.c_str(), paths[i], managedObjects);
             if (ec)
             {
-                phosphor::logging::log<phosphor::logging::level::ERR>(
-                    "GetMangagedObjects for getSensorMap failed",
-                    phosphor::logging::entry("ERROR=%s", ec.message().c_str()));
+#ifdef __ZEPHYR__
+                if (optionalPath)
+                {
+                    /*
+                     * Only log the transition. The entry itself travels over
+                     * D-Bus to the logging service, so repeating it on every
+                     * rebuild would cost a round trip of its own.
+                     */
+                    if (!vrAbsent)
+                    {
+                        phosphor::logging::log<phosphor::logging::level::DEBUG>(
+                            "Optional VR subtree unavailable, skipping it",
+                            phosphor::logging::entry("ERROR=%s",
+                                                     ec.message().c_str()));
+                    }
+                    vrAbsent = true;
+                    vrProbeTime = std::chrono::steady_clock::now();
+                }
+                else
+#endif
+                {
+                    phosphor::logging::log<phosphor::logging::level::ERR>(
+                        "GetMangagedObjects for getSensorMap failed",
+                        phosphor::logging::entry("ERROR=%s",
+                                                 ec.message().c_str()));
+                }
 
                 continue;
             }
+
+#ifdef __ZEPHYR__
+            if (optionalPath)
+            {
+                vrAbsent = false;
+            }
+#endif
+
             allManagedObjects.merge(managedObjects);
             found = true;
         }
 
         if (!found)
         {
+            /*
+             * Stamp the failed attempt too. Without this the timestamp stayed
+             * at "never", every sensor command re-issued GetManagedObjects,
+             * and each of them is a full D-Bus round trip through the broker
+             * (~20-40 ms on this SoC). Retrying once per updatePeriod is what
+             * the cache was meant to do.
+             */
+            updateTimeMap[sensorConnection] = now;
+#ifdef __ZEPHYR__
+            ipmi_lat_map_rebuild(
+                k_cyc_to_us_floor32(k_cycle_get_32() - mapStartCyc),
+                (uint32_t)allManagedObjects.size());
+#endif
             return false;
         }
 
@@ -398,6 +483,11 @@ static bool getSensorMap(ipmi::Context::ptr ctx, std::string sensorConnection,
         // Update time after finish building the map which allow the
         // data to be cached for updatePeriod plus the build time.
         updateTimeMap[sensorConnection] = std::chrono::steady_clock::now();
+#ifdef __ZEPHYR__
+        ipmi_lat_map_rebuild(
+            k_cyc_to_us_floor32(k_cycle_get_32() - mapStartCyc),
+            (uint32_t)allManagedObjects.size());
+#endif
     }
     auto connection = SensorCache.find(sensorConnection);
     if (connection == SensorCache.end())
