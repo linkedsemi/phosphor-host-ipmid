@@ -1335,6 +1335,10 @@ void registerStorageFunctions()
                           ipmi::storage::cmdWriteFruData,
                           ipmi::Privilege::Operator, ipmiStorageWriteFruData);
 
+#ifndef __ZEPHYR__
+    // Zephyr: SEL is served by storagehandler.cpp, which reads the logging
+    // service. These handlers read ipmi_sel files that nothing writes on
+    // Zephyr, and would shadow the logging-backed implementation.
     // <Get SEL Info>
     ipmi::registerHandler(ipmi::prioOpenBmcBase, ipmi::netFnStorage,
                           ipmi::storage::cmdGetSelInfo, ipmi::Privilege::User,
@@ -1364,6 +1368,7 @@ void registerStorageFunctions()
     ipmi::registerHandler(ipmi::prioOpenBmcBase, ipmi::netFnStorage,
                           ipmi::storage::cmdSetSelTime,
                           ipmi::Privilege::Operator, ipmiStorageSetSELTime);
+#endif
 }
 } // namespace storage
 } // namespace ipmi
